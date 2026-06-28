@@ -1,0 +1,7 @@
+fastapi
+uvicorn[standard]
+pydantic
+redis
+tree-sitter
+tree-sitter-python
+neo4j

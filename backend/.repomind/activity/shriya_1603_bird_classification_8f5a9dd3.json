@@ -1,0 +1,47 @@
+{
+  "source": "git",
+  "overview": {
+    "defaultBranch": "main",
+    "lastCommitDate": "2024-12-14T16:04:17-05:00",
+    "totalCommits": 1,
+    "activeContributors": 1
+  },
+  "recentCommits": [
+    {
+      "sha": "6248f23ba488",
+      "message": "Update README.md",
+      "authorName": "Shriya kotala",
+      "authorEmail": "91672218+shriya-1603@users.noreply.github.com",
+      "date": "2024-12-14T16:04:17-05:00",
+      "filesChanged": [
+        "README.md",
+        "bird_classification.ipynb"
+      ]
+    }
+  ],
+  "contributors": [
+    {
+      "name": "Shriya kotala",
+      "email": "91672218+shriya-1603@users.noreply.github.com",
+      "commitCount": 1,
+      "lastActiveDate": "2024-12-14T16:04:17-05:00",
+      "filesTouched": [
+        {
+          "path": "README.md",
+          "commitCount": 1,
+          "lastTouched": "2024-12-14T16:04:17-05:00",
+          "ownershipScore": 1.0
+        },
+        {
+          "path": "bird_classification.ipynb",
+          "commitCount": 1,
+          "lastTouched": "2024-12-14T16:04:17-05:00",
+          "ownershipScore": 1.0
+        }
+      ],
+      "primaryAreas": [
+        "(root)"
+      ]
+    }
+  ]
+}

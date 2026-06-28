@@ -1,0 +1,404 @@
+{
+  "source": "git",
+  "overview": {
+    "defaultBranch": "main",
+    "lastCommitDate": "2025-12-04T02:27:08-05:00",
+    "totalCommits": 13,
+    "activeContributors": 1
+  },
+  "recentCommits": [
+    {
+      "sha": "61d8fca2b8a8",
+      "message": "module1 update",
+      "authorName": "shriya-1603",
+      "authorEmail": "kotala.shriya16@gmail.com",
+      "date": "2025-12-04T02:27:08-05:00",
+      "filesChanged": [
+        "app.py",
+        "static/module1/main.js",
+        "templates/modules/module1.html"
+      ]
+    },
+    {
+      "sha": "3875988639ac",
+      "message": "images cleared",
+      "authorName": "shriya-1603",
+      "authorEmail": "kotala.shriya16@gmail.com",
+      "date": "2025-12-04T02:08:29-05:00",
+      "filesChanged": [
+        "data/faces/shriya/img_0001.jpg",
+        "data/faces/shriya/img_0002.jpg",
+        "data/faces/shriya/img_0003.jpg",
+        "data/faces/shriya/img_0004.jpg",
+        "data/faces/shriya/img_0005.jpg",
+        "data/faces/shriya/img_0006.jpg",
+        "data/faces/shriya/img_0007.jpg",
+        "data/faces/shriya/img_0008.jpg",
+        "data/faces/shriya/img_0009.jpg",
+        "data/faces/shriya/img_0010.jpg",
+        "data/faces/shriya/img_0011.jpg",
+        "data/faces/shriya/img_0012.jpg",
+        "data/faces/shriya/img_0013.jpg",
+        "data/faces/shriya/img_0014.jpg",
+        "data/faces/shriya/img_0015.jpg",
+        "data/faces/shriya/img_0016.jpg",
+        "data/faces/shriya/img_0017.jpg"
+      ]
+    },
+    {
+      "sha": "fd166b151a83",
+      "message": "Face Authentication video stream",
+      "authorName": "shriya-1603",
+      "authorEmail": "kotala.shriya16@gmail.com",
+      "date": "2025-12-04T01:00:25-05:00",
+      "filesChanged": [
+        "app.py",
+        "static/main.js",
+        "templates/login.html",
+        "templates/register.html"
+      ]
+    },
+    {
+      "sha": "7b226b3b1812",
+      "message": " use updated Dockerfile on Railway",
+      "authorName": "shriya-1603",
+      "authorEmail": "kotala.shriya16@gmail.com",
+      "date": "2025-12-04T00:26:06-05:00",
+      "filesChanged": [
+        "Dockerfile"
+      ]
+    },
+    {
+      "sha": "d40a062e950c",
+      "message": "Remove Procfile, use Dockerfile on Railway",
+      "authorName": "shriya-1603",
+      "authorEmail": "kotala.shriya16@gmail.com",
+      "date": "2025-12-04T00:17:26-05:00",
+      "filesChanged": [
+        "Procfile"
+      ]
+    },
+    {
+      "sha": "9a1aba574710",
+      "message": "Fix Dockerfile: bind gunicorn to port 5000",
+      "authorName": "shriya-1603",
+      "authorEmail": "kotala.shriya16@gmail.com",
+      "date": "2025-12-04T00:10:19-05:00",
+      "filesChanged": [
+        "Dockerfile"
+      ]
+    },
+    {
+      "sha": "0b7a87c0e58d",
+      "message": "Fix Dockerfile: bind gunicorn to port 8000",
+      "authorName": "shriya-1603",
+      "authorEmail": "kotala.shriya16@gmail.com",
+      "date": "2025-12-04T00:03:57-05:00",
+      "filesChanged": [
+        "Dockerfile"
+      ]
+    },
+    {
+      "sha": "c46e8866afcc",
+      "message": "Fix Dockerfile: bind gunicorn to port 5000",
+      "authorName": "shriya-1603",
+      "authorEmail": "kotala.shriya16@gmail.com",
+      "date": "2025-12-03T23:55:51-05:00",
+      "filesChanged": [
+        "Dockerfile"
+      ]
+    },
+    {
+      "sha": "f9e09d8ff8b9",
+      "message": "Fix Dockerfile: bind gunicorn to port 8000",
+      "authorName": "shriya-1603",
+      "authorEmail": "kotala.shriya16@gmail.com",
+      "date": "2025-12-03T23:51:33-05:00",
+      "filesChanged": [
+        "Dockerfile"
+      ]
+    },
+    {
+      "sha": "b328e45ef50d",
+      "message": "Fix Railway Gunicorn startup & PORT handling",
+      "authorName": "shriya-1603",
+      "authorEmail": "kotala.shriya16@gmail.com",
+      "date": "2025-12-03T23:34:49-05:00",
+      "filesChanged": [
+        "Dockerfile"
+      ]
+    },
+    {
+      "sha": "86de79cb4ac3",
+      "message": "Add Dockerfile for Railway deployment",
+      "authorName": "shriya-1603",
+      "authorEmail": "kotala.shriya16@gmail.com",
+      "date": "2025-12-03T23:26:24-05:00",
+      "filesChanged": [
+        "Dockerfile"
+      ]
+    },
+    {
+      "sha": "1ba474109506",
+      "message": "Install gunicorn for Railway deploy",
+      "authorName": "shriya-1603",
+      "authorEmail": "kotala.shriya16@gmail.com",
+      "date": "2025-12-03T23:19:15-05:00",
+      "filesChanged": [
+        "Dockerfile"
+      ]
+    },
+    {
+      "sha": "53d91ca0a120",
+      "message": "first commit",
+      "authorName": "shriya-1603",
+      "authorEmail": "kotala.shriya16@gmail.com",
+      "date": "2025-12-03T23:06:40-05:00",
+      "filesChanged": [
+        ".DS_Store",
+        ".env",
+        "Dockerfile",
+        "Procfile",
+        "app.py",
+        "data/faces/shriya/img_0001.jpg",
+        "data/faces/shriya/img_0002.jpg",
+        "data/faces/shriya/img_0003.jpg",
+        "data/faces/shriya/img_0004.jpg",
+        "data/faces/shriya/img_0005.jpg",
+        "data/faces/shriya/img_0006.jpg",
+        "data/faces/shriya/img_0007.jpg",
+        "data/faces/shriya/img_0008.jpg",
+        "data/faces/shriya/img_0009.jpg",
+        "data/faces/shriya/img_0010.jpg",
+        "data/faces/shriya/img_0011.jpg",
+        "data/faces/shriya/img_0012.jpg",
+        "data/faces/shriya/img_0013.jpg",
+        "data/faces/shriya/img_0014.jpg",
+        "data/faces/shriya/img_0015.jpg",
+        "data/faces/shriya/img_0016.jpg",
+        "data/faces/shriya/img_0017.jpg",
+        "data/labels.json",
+        "data/models/lbph.yml",
+        "data/models/model_meta.json",
+        "requirements.txt",
+        "runtime/.DS_Store",
+        "runtime/module2/.DS_Store",
+        "runtime/module2/sessions/.DS_Store",
+        "runtime/module4/.DS_Store",
+        "runtime/module4/sessions/.DS_Store",
+        "runtime/module4/sessions/fff096e2/uploads/IMG-20251203-WA0021-54f42bd7.jpg",
+        "runtime/module4/sessions/fff096e2/uploads/IMG-20251203-WA0021-929f3b68.jpg",
+        "runtime/module4/sessions/fff096e2/uploads/IMG-20251203-WA0021-f96b0dff.jpg",
+        "runtime/module4/sessions/fff096e2/uploads/IMG-20251203-WA0022-67e4c1fb.jpg",
+        "runtime/module4/sessions/fff096e2/uploads/IMG-20251203-WA0022-6f65cdd5.jpg",
+        "runtime/module4/sessions/fff096e2/uploads/IMG-20251203-WA0022-8800f44b.jpg",
+        "runtime/module4/sessions/fff096e2/uploads/IMG-20251203-WA0023-13455c61.jpg",
+        "runtime/module4/sessions/fff096e2/uploads/IMG-20251203-WA0023-5a57317e.jpg",
+        "runtime/module4/sessions/fff096e2/uploads/IMG-20251203-WA0023-d75751be.jpg",
+        "runtime/module4/sessions/fff096e2/uploads/IMG-20251203-WA0024-7e488739.jpg",
+        "runtime/module4/sessions/fff096e2/uploads/IMG-20251203-WA0024-92bce13c.jpg",
+        "runtime/module4/sessions/fff096e2/uploads/IMG-20251203-WA0024-e178acab.jpg",
+        "runtime/module4/sessions/fff096e2/uploads/IMG-20251203-WA0025-1c1e0103.jpg",
+        "runtime/module4/sessions/fff096e2/uploads/IMG-20251203-WA0025-897881f1.jpg",
+        "runtime/module4/sessions/fff096e2/uploads/IMG-20251203-WA0025-a3552230.jpg",
+        "runtime/module4/sessions/fff096e2/uploads/IMG-20251203-WA0026-50aedafc.jpg",
+        "runtime/module4/sessions/fff096e2/uploads/IMG-20251203-WA0026-83f846d3.jpg",
+        "runtime/module4/sessions/fff096e2/uploads/IMG-20251203-WA0026-935e847e.jpg",
+        "runtime/module4/sessions/fff096e2/uploads/IMG-20251203-WA0027-528b6950.jpg",
+        "runtime/module4/sessions/fff096e2/uploads/IMG-20251203-WA0027-649e50f8.jpg",
+        "runtime/module4/sessions/fff096e2/uploads/IMG-20251203-WA0027-9baca450.jpg",
+        "runtime/module4/sessions/fff096e2/uploads/IMG-20251203-WA0028-1eb7526d.jpg",
+        "runtime/module4/sessions/fff096e2/uploads/IMG-20251203-WA0028-303a6025.jpg",
+        "runtime/module4/sessions/fff096e2/uploads/IMG-20251203-WA0028-e6460f15.jpg",
+        "runtime/module4/sessions/fff096e2/uploads/IMG-20251203-WA0029-2e1596ce.jpg",
+        "runtime/module4/sessions/fff096e2/uploads/IMG-20251203-WA0029-3d89a18f.jpg",
+        "runtime/module4/sessions/fff096e2/uploads/IMG-20251203-WA0029-d24ad3ba.jpg",
+        "runtime/module4/sessions/fff096e2/uploads/IMG-20251203-WA0030-8778930a.jpg",
+        "runtime/module4/sessions/fff096e2/uploads/IMG-20251203-WA0030-9ecd06c1.jpg",
+        "runtime/module4/sessions/fff096e2/uploads/IMG-20251203-WA0030-a13f7c4b.jpg",
+        "runtime/module4/sessions/fff096e2/uploads/IMG-20251203-WA0031-1616ef1a.jpg",
+        "runtime/module4/sessions/fff096e2/uploads/IMG-20251203-WA0031-36f267f6.jpg",
+        "runtime/module4/sessions/fff096e2/uploads/IMG-20251203-WA0031-fcc77b30.jpg",
+        "static/.DS_Store",
+        "static/main.js",
+        "static/module1/main.js",
+        "static/module1/style.css",
+        "static/module2/main.js",
+        "static/module3/style.css",
+        "static/module5/one.pdf",
+        "static/module5/two.pdf",
+        "static/module6/data/sam2_masks_fixed.npz",
+        "static/module6/main.js",
+        "static/module6/style.css",
+        "static/module7/7b.pdf",
+        "static/module7/main.js",
+        "static/outputs/.DS_Store",
+        "static/style.css",
+        "static/videos/.DS_Store",
+        "static/videos/module1_demo.mp4",
+        "static/videos/module2_demo.mp4",
+        "static/videos/module3_demo.mp4",
+        "static/videos/module4_demo.mp4",
+        "static/videos/module5_demo.mp4",
+        "static/videos/module7_demo.mp4",
+        "templates/base.html",
+        "templates/dashboard.html",
+        "templates/login.html",
+        "templates/modules/module1.html",
+        "templates/modules/module2.html",
+        "templates/modules/module3/task1.html",
+        "templates/modules/module3/task2.html",
+        "templates/modules/module3/task3.html",
+        "templates/modules/module3/task4.html",
+        "templates/modules/module3_dashboard.html",
+        "templates/modules/module4/index.html",
+        "templates/modules/module4/task1.html",
+        "templates/modules/module4/task2.html",
+        "templates/modules/module5.html",
+        "templates/modules/module5_viewer.html",
+        "templates/modules/module6.html",
+        "templates/modules/module7/task1.html",
+        "templates/modules/module7/task2.html",
+        "templates/modules/module7/task3.html",
+        "templates/modules/module7_dashboard.html",
+        "templates/register.html"
+      ]
+    }
+  ],
+  "contributors": [
+    {
+      "name": "shriya-1603",
+      "email": "kotala.shriya16@gmail.com",
+      "commitCount": 13,
+      "lastActiveDate": "2025-12-04T02:27:08-05:00",
+      "filesTouched": [
+        {
+          "path": "Dockerfile",
+          "commitCount": 9,
+          "lastTouched": "2025-12-04T00:26:06-05:00",
+          "ownershipScore": 1.0
+        },
+        {
+          "path": "app.py",
+          "commitCount": 3,
+          "lastTouched": "2025-12-04T02:27:08-05:00",
+          "ownershipScore": 1.0
+        },
+        {
+          "path": "static/module1/main.js",
+          "commitCount": 2,
+          "lastTouched": "2025-12-04T02:27:08-05:00",
+          "ownershipScore": 1.0
+        },
+        {
+          "path": "templates/modules/module1.html",
+          "commitCount": 2,
+          "lastTouched": "2025-12-04T02:27:08-05:00",
+          "ownershipScore": 1.0
+        },
+        {
+          "path": "data/faces/shriya/img_0001.jpg",
+          "commitCount": 2,
+          "lastTouched": "2025-12-04T02:08:29-05:00",
+          "ownershipScore": 1.0
+        },
+        {
+          "path": "data/faces/shriya/img_0002.jpg",
+          "commitCount": 2,
+          "lastTouched": "2025-12-04T02:08:29-05:00",
+          "ownershipScore": 1.0
+        },
+        {
+          "path": "data/faces/shriya/img_0003.jpg",
+          "commitCount": 2,
+          "lastTouched": "2025-12-04T02:08:29-05:00",
+          "ownershipScore": 1.0
+        },
+        {
+          "path": "data/faces/shriya/img_0004.jpg",
+          "commitCount": 2,
+          "lastTouched": "2025-12-04T02:08:29-05:00",
+          "ownershipScore": 1.0
+        },
+        {
+          "path": "data/faces/shriya/img_0005.jpg",
+          "commitCount": 2,
+          "lastTouched": "2025-12-04T02:08:29-05:00",
+          "ownershipScore": 1.0
+        },
+        {
+          "path": "data/faces/shriya/img_0006.jpg",
+          "commitCount": 2,
+          "lastTouched": "2025-12-04T02:08:29-05:00",
+          "ownershipScore": 1.0
+        },
+        {
+          "path": "data/faces/shriya/img_0007.jpg",
+          "commitCount": 2,
+          "lastTouched": "2025-12-04T02:08:29-05:00",
+          "ownershipScore": 1.0
+        },
+        {
+          "path": "data/faces/shriya/img_0008.jpg",
+          "commitCount": 2,
+          "lastTouched": "2025-12-04T02:08:29-05:00",
+          "ownershipScore": 1.0
+        },
+        {
+          "path": "data/faces/shriya/img_0009.jpg",
+          "commitCount": 2,
+          "lastTouched": "2025-12-04T02:08:29-05:00",
+          "ownershipScore": 1.0
+        },
+        {
+          "path": "data/faces/shriya/img_0010.jpg",
+          "commitCount": 2,
+          "lastTouched": "2025-12-04T02:08:29-05:00",
+          "ownershipScore": 1.0
+        },
+        {
+          "path": "data/faces/shriya/img_0011.jpg",
+          "commitCount": 2,
+          "lastTouched": "2025-12-04T02:08:29-05:00",
+          "ownershipScore": 1.0
+        },
+        {
+          "path": "data/faces/shriya/img_0012.jpg",
+          "commitCount": 2,
+          "lastTouched": "2025-12-04T02:08:29-05:00",
+          "ownershipScore": 1.0
+        },
+        {
+          "path": "data/faces/shriya/img_0013.jpg",
+          "commitCount": 2,
+          "lastTouched": "2025-12-04T02:08:29-05:00",
+          "ownershipScore": 1.0
+        },
+        {
+          "path": "data/faces/shriya/img_0014.jpg",
+          "commitCount": 2,
+          "lastTouched": "2025-12-04T02:08:29-05:00",
+          "ownershipScore": 1.0
+        },
+        {
+          "path": "data/faces/shriya/img_0015.jpg",
+          "commitCount": 2,
+          "lastTouched": "2025-12-04T02:08:29-05:00",
+          "ownershipScore": 1.0
+        },
+        {
+          "path": "data/faces/shriya/img_0016.jpg",
+          "commitCount": 2,
+          "lastTouched": "2025-12-04T02:08:29-05:00",
+          "ownershipScore": 1.0
+        }
+      ],
+      "primaryAreas": [
+        "data",
+        "(root)",
+        "static",
+        "templates"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,38 @@
+{
+  "octocat_hello_world_35e63d4f": {
+    "repo_id": "octocat_hello_world_35e63d4f",
+    "owner": "octocat",
+    "name": "Hello-World",
+    "full_name": "octocat/Hello-World",
+    "branch": "default",
+    "local_path": "/Users/shriyakotala/Documents/RepoMind/backend/storage/repos/octocat_hello_world_35e63d4f",
+    "imported_at": "2026-05-29T22:50:11.624814Z",
+    "primary_language": "TXT",
+    "file_count": 1,
+    "total_lines": 1
+  },
+  "shriya_1603_bird_classification_72e541b1": {
+    "repo_id": "shriya_1603_bird_classification_72e541b1",
+    "owner": "shriya-1603",
+    "name": "bird_classification",
+    "full_name": "shriya-1603/bird_classification",
+    "branch": "default",
+    "local_path": "/Users/shriyakotala/Documents/RepoMind/backend/storage/repos/shriya_1603_bird_classification_72e541b1",
+    "imported_at": "2026-05-29T23:01:16.803084Z",
+    "primary_language": "MD",
+    "file_count": 2,
+    "total_lines": 6029
+  },
+  "shriya_1603_bird_classification_8f5a9dd3": {
+    "repo_id": "shriya_1603_bird_classification_8f5a9dd3",
+    "owner": "shriya-1603",
+    "name": "bird_classification",
+    "full_name": "shriya-1603/bird_classification",
+    "branch": "default",
+    "local_path": "/Users/shriyakotala/Documents/RepoMind/backend/storage/repos/shriya_1603_bird_classification_8f5a9dd3",
+    "imported_at": "2026-05-29T23:11:02.534527Z",
+    "primary_language": "MD",
+    "file_count": 2,
+    "total_lines": 6029
+  }
+}
