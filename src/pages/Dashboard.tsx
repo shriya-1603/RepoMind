@@ -48,6 +48,15 @@ function computeHealthScore(
   summary: RepositorySummaryRealData,
   graphData: RealGraphResponse,
 ): { score: number; breakdown: { label: string; penalty: number; color: string }[] } {
+  // Use high-quality senior-engineer health breakdown pre-computed on the backend if available
+  const intel = summary.repositoryIntelligence;
+  if (intel && intel.healthScore !== undefined && intel.healthBreakdown) {
+    return {
+      score: intel.healthScore,
+      breakdown: intel.healthBreakdown,
+    };
+  }
+
   const nodes = graphData.nodes.length;
   const edges = graphData.edges.length;
 
@@ -775,7 +784,7 @@ const AITechnicalBriefing: React.FC<{ briefing: RepositoryIntelligence }> = ({ b
         ) : (
           <BriefingSection icon={<Workflow size={13} />} title="Execution Flow Reconstructed" accent="#FFB347">
             <div className="p-4 rounded-xl bg-[#0D0D0D] border border-[#1E1E1E] text-[12px] text-[#BBBBBB] leading-relaxed italic">
-              This repository contains multiple independent execution paths. A single linear workflow could not be confidently reconstructed.
+              Dominant runtime path could not be reconstructed with high confidence.
             </div>
           </BriefingSection>
         )}
@@ -1051,6 +1060,10 @@ const LoadedDashboard: React.FC = () => {
 
   const fetchData = useCallback(async () => {
     if (!analysisId) return;
+    setSummary(null);
+    setGraphData(null);
+    setActivity(null);
+    setSelectedContributor(null);
     setLoadingSummary(true);
     setLoadingGraph(true);
     setLoadingActivity(true);

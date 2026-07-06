@@ -628,6 +628,8 @@ class GraphService:
         node_id = f"repo:{analysis_id}"
         summary = parsed_output.get("summary", {})
         timing = parsed_output.get("timing_metrics", {})
+        readme_content = parsed_output.get("readme_content", "") or ""
+        manifest_files = list((parsed_output.get("manifest_content") or {}).keys())
         query = """
         MERGE (r:Repository {id: $id})
         SET r.analysis_id    = $analysis_id,
@@ -640,7 +642,9 @@ class GraphService:
             r.parseTimeMs    = $parse_time,
             r.graphStoreTimeMs = $graph_store_time,
             r.gitActivityTimeMs = $git_activity_time,
-            r.totalAnalysisTimeMs = $total_analysis_time
+            r.totalAnalysisTimeMs = $total_analysis_time,
+            r.readme_content = $readme_content,
+            r.manifest_files = $manifest_files
         RETURN r.id AS id
         """
         self._client.run_write_query(
@@ -658,6 +662,8 @@ class GraphService:
                 "graph_store_time": timing.get("graphStoreTimeMs", 0),
                 "git_activity_time": timing.get("gitActivityTimeMs", 0),
                 "total_analysis_time": timing.get("totalAnalysisTimeMs", 0),
+                "readme_content": readme_content[:8000],
+                "manifest_files": manifest_files,
             },
         )
         return node_id

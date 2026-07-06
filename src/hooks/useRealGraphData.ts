@@ -124,6 +124,9 @@ export const useRealGraphData = (analysisId?: string | null) => {
   useEffect(() => {
     let cancelled = false;
 
+    // Clear old graph immediately to prevent cross-repository visual leakage
+    setState({ nodes: [], edges: [], source: null, loading: true, error: null, warning: null });
+
     const run = async () => {
       // Return cached result immediately
       if (cache.current.has(effectiveId)) {

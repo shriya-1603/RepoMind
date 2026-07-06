@@ -189,6 +189,32 @@ def analyze_repo(request: AnalyzeRepoRequest) -> Any:
         logger.info(f"[ANALYZE] stage=parse_completed duration={parse_duration}ms")
         print(f"[ANALYZE] stage=parse_completed duration={parse_duration}ms")
 
+        # ── Read README and manifest files before temp dir is deleted ────────
+        readme_content = ""
+        manifest_content = {}
+        try:
+            for readme_name in ("README.md", "README.rst", "README.txt", "README"):
+                readme_path = os.path.join(repo_path, readme_name)
+                if os.path.isfile(readme_path):
+                    with open(readme_path, "r", encoding="utf-8", errors="ignore") as fh:
+                        readme_content = fh.read()[:8000]  # cap at 8 KB
+                    break
+        except Exception as exc:
+            logger.warning(f"[ANALYZE] could not read README: {exc}")
+
+        for manifest_name in ("requirements.txt", "pyproject.toml", "setup.py",
+                              "package.json", "Cargo.toml", "pom.xml", "build.gradle"):
+            try:
+                mp = os.path.join(repo_path, manifest_name)
+                if os.path.isfile(mp):
+                    with open(mp, "r", encoding="utf-8", errors="ignore") as fh:
+                        manifest_content[manifest_name] = fh.read()[:4000]
+            except Exception:
+                pass
+
+        parsed_output["readme_content"] = readme_content
+        parsed_output["manifest_content"] = manifest_content
+
         # Store graph in Neo4j
         start_store = time.time()
         try:
@@ -409,14 +435,10 @@ def impact_analysis_real(analysis_id: str, target: str = Query(..., min_length=1
 
         if result:
             return ImpactAnalysisRealResponse(**result)
+        raise HTTPException(status_code=404, detail="Impact analysis target not found in graph database")
     except Exception as exc:
-        logger.warning('impact analysis real failed: %s', exc)
-
-    item = get_analysis_result(analysis_id)
-    if not item:
-        raise HTTPException(status_code=404, detail='Analysis not found')
-
-    return ImpactAnalysisRealResponse(**build_impact_real_payload(item['impact'], target))
+        logger.error('impact analysis real failed: %s', exc)
+        raise HTTPException(status_code=500, detail=f"Database error: {str(exc)}")
 
 
 @router.get('/semantic-search/{analysis_id}', response_model=SemanticSearchResponse)
@@ -528,12 +550,10 @@ def repository_summary_real(analysis_id: str) -> RepositorySummaryReal:
 
         if result:
             return RepositorySummaryReal(**result)
+        raise HTTPException(status_code=404, detail="Analysis summary not found in graph database")
     except Exception as exc:
-        logger.warning('repository summary real failed: %s', exc)
-        logger.warning('fallback reason=%s analysis_id=%s', str(exc), analysis_id)
-
-    # Fallback to mock data
-    return RepositorySummaryReal(**build_repository_summary_payload())
+        logger.error('repository summary real failed: %s', exc)
+        raise HTTPException(status_code=500, detail=f"Database or analysis error: {str(exc)}")
 
 
 @router.post('/change-simulation-real/{analysis_id}', response_model=ChangeSimulationRealResponse)

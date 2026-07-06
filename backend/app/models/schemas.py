@@ -278,6 +278,12 @@ class DomainDetectionV2(BaseModel):
     evidence: List[str]    # matched signal labels
 
 
+class HealthBreakdownItem(BaseModel):
+    label: str
+    penalty: int
+    color: str
+
+
 class RepositoryIntelligence(BaseModel):
     """v2 evidence-driven technical briefing. Every claim has supporting evidence."""
     projectPurpose: IntelligenceItem     # carries confidence
@@ -295,6 +301,8 @@ class RepositoryIntelligence(BaseModel):
     domain: DomainDetectionV2           # carries confidence
     observations: List[IntelligenceItem]
     closingSentence: str
+    healthScore: Optional[int] = None
+    healthBreakdown: Optional[List[HealthBreakdownItem]] = None
 
 
 class RepositorySummaryReal(BaseModel):

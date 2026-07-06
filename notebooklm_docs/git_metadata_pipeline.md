@@ -1,88 +1,75 @@
-# Git Metadata Pipeline & Analysis Service
+RepoMind Pipeline Engine & Dependency Specifications
+This document outlines the pipeline engine execution, topological sort dependency resolver, cycle detection logic, and GraphRepository protocol interfaces.
+--------------------------------------------------------------------------------
+⚙️ Topological Sort Algorithm (pipeline.py)
+Dynamic execution resolution uses a recursive DFS three-state resolver:
+- State 0 (Unvisited): Start state for all generators.
+- State 1 (Visiting): Generator is currently in the traversal stack. If encountered again, cycle is detected.
+- State 2 (Visited): Generator and dependencies resolved. Safe to execute.
 
-This document provides a technical dive into the Git Metadata pipeline. It covers how git CLI commands are executed, how log files are parsed, and how ownership metrics are calculated.
+Dynamic sorting execution flow steps:
+1. Initialize states to 0 for all keys.
+2. Select next generator from list.
+3. Call visit(generator).
+   - If State is 2: Return.
+   - If State is 1: Raise PipelineDependencyError (Circular Loop Detected!).
+   - If State is 0: Set state to 1, push key to path stack, visit all required dependencies recursively.
+4. Pop key from path stack, set state to 2, and append generator to order sequence.
+--------------------------------------------------------------------------------
+📄 Core Pipeline Contract (pipeline.py snippet)
+```python
+class RepositoryIntelligencePipeline:
+    def __init__(self):
+        self.client = LLMClient()
+        self.generators = [
+            DomainGenerator, TechnologyGenerator, PurposeGenerator,
+            ExecutionFlowGenerator, ReadingGuideGenerator, LayersGenerator,
+            CriticalFilesGenerator, ComplexityGenerator, HealthGenerator,
+            ObservationsGenerator, ArchitectureGenerator
+        ]
+        self.pipeline = self._resolve_order(self.generators)
 
----
+    def _resolve_order(self, generators: List[type]) -> List[type]:
+        key_to_cls = {cls.output_key: cls for cls in generators if cls.output_key}
+        states = {cls.output_key: 0 for cls in generators if cls.output_key}
+        order, path = [], []
 
-## 🚀 Execution Service (`git_metadata_service.py`)
+        def visit(cls):
+            key = cls.output_key
+            if states.get(key) == 2:
+                return
+            if states.get(key) == 1:
+                cycle = " -> ".join(path[path.index(key):]) + " -> " + key
+                raise PipelineDependencyError(f"Circular dependency: {cycle}")
+            
+            states[key] = 1
+            path.append(key)
+            for req in getattr(cls, "requires", []):
+                if req in key_to_cls:
+                    visit(key_to_cls[req])
+            path.pop()
+            states[key] = 2
+            order.append(cls)
 
-RepoMind runs directly inside the environment without a heavy database layer for Git. All computations are run on-demand using standard Git CLI commands executed through Python's `subprocess` API. This keeps the application lightweight and free of external C-bindings dependencies like GitPython.
-
----
-
-## 🛠 Command Orchestration
-
-The service executes the following commands inside the directory path of the cloned repository:
-
-### 1. Identify Branch
-```bash
-git rev-parse --abbrev-ref HEAD
+        for cls in generators:
+            if cls.output_key:
+                visit(cls)
+        return order
 ```
-Retrieves the name of the checked-out branch (e.g., `main` or `master`).
-
-### 2. Count Commits
-```bash
-git rev-list --count HEAD
+--------------------------------------------------------------------------------
+🔌 GraphRepository Protocol Interface (graph_repository.py)
+Declares database access contracts, decoupling SQL/Cypher database queries from facts compilation:
+```python
+class GraphRepositoryProtocol(Protocol):
+    def get_all_imports(self, analysis_id: str) -> List[Dict[str, Any]]: ...
+    def get_all_files(self, analysis_id: str) -> List[Dict[str, Any]]: ...
+    def get_all_functions(self, analysis_id: str) -> List[Dict[str, Any]]: ...
+    def get_readme(self, analysis_id: str) -> str: ...
+    def get_call_chain_for_file(self, analysis_id: str, rel_path: str) -> List[str]: ...
 ```
-Returns the total number of commits on the current branch.
-
-### 3. Last Commit Date
-```bash
-git log -1 --format=%cI
-```
-Gets the ISO 8601 date of the most recent commit in the tree.
-
-### 4. Recent Commits with Authors
-```bash
-git log -50 --format=%H|%s|%an|%ae|%cI --no-merges
-```
-Fetches the latest 50 non-merge commits. The output is structured with a custom pipe delimiter (`|`), which the backend splits into:
-* SHA
-* Commit Message
-* Author Name
-* Author Email
-* Date
-
-### 5. Files Changed per Commit
-```bash
-git log -50 --no-merges --name-only --format=COMMIT:%H
-```
-Fetches the names of files modified in each of the last 50 commits. The `COMMIT:%H` marker separates files for each commit block, enabling single-pass parsing in Python.
-
----
-
-## 📊 Git Metrics Computation
-
-### 1. Active Contributors
-By collecting all unique emails from the log output:
-```bash
-git log --format=%ae
-```
-We extract the set of all active email addresses, computing the total count of developers who have contributed to the tree.
-
-### 2. Commit Log & File Mapping
-To build per-contributor ownership metrics without running slow individual commands, the engine requests a single full log mapping every commit to the files it touched:
-```bash
-git log --no-merges --name-only --format=COMMIT:%H|%an|%ae|%cI
-```
-
-The output is processed in a single pass:
-1. Every line starting with `COMMIT:` updates the active author context (email, name, timestamp).
-2. Every subsequent non-empty line (representing a file path) adds a count to that author's file records.
-
----
-
-## 🧮 File Ownership & Directory Inference
-
-### 1. File Ownership Calculation
-For every file $F$ modified in the repository, we track the total commits that touched it ($C_{\text{total}}$). For each author $A$ who modified $F$, we track their commit count ($C_{A}$).
-The **Ownership Score** ($S_O$) is:
-$$S_O(A, F) = \frac{C_{A}(F)}{C_{\text{total}}(F)}$$
-
-This score ranges from `0.0` to `1.0`. A score of `1.0` means the author is the sole contributor to that file, representing high ownership.
-
-### 2. Primary Areas Inference
-To determine the primary directories a developer works in:
-1. We sort their touched files by commit count in descending order.
-2. We extract the top-level directory names (e.g., `src`, `backend`, `tests`). If a file is in the root, it is classified as `(root)`.
-3. We count the directory occurrences and return the top 5 most modified folders as their **Primary Areas**.
+--------------------------------------------------------------------------------
+⏱ Latency Profiling & Observability
+Each step is wrapped in precision timers:
+`start_time = time.perf_counter()`
+`context[gen.output_key] = gen.generate(facts, context)`
+Outputs duration metrics (e.g. `DomainGenerator: 22ms`) to logs.

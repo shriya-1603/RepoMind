@@ -1,71 +1,200 @@
-# 🧠 RepoMind — Interactive Repository Intelligence & Impact Analysis
+# RepoMind — Repository Intelligence Platform
 
-RepoMind is a premium code analysis and intelligence platform that parses source code repositories into an interactive **AST dependency graph**, stores it in **Neo4j**, and integrates **Git commit metadata**. It helps engineers onboard to unfamiliar codebases in minutes, inspect visual dependencies, simulate refactoring risk (blast radius), and query structural data using natural language.
-
----
-
-## 🚀 Key Features Implemented
-
-### 1. Senior-Engineer Onboarding Briefing (Repository Intelligence v3)
-* **What is this Project**: Answers "What problem does this repository solve?" by generating high-quality codebase descriptions based on imported libraries, module types, and structural components.
-* **Grounded Domain Scoring**: Uses a weighted scoring engine to classify codebases into 6 categories: `Computer Vision`, `Backend API`, `Machine Learning`, `Frontend`, `CLI Tool`, and `Infrastructure`. Automatically flags a low-confidence or `"Unknown"` fallback when confidence is under 50%.
-* **Reconstructed AST Execution Flow**: Dynamically traces function call chains in Neo4j (via `FILE_CONTAINS_FUNCTION` and `FUNCTION_CALLS_FUNCTION` relationships) to map true runtime paths (e.g. `app.py -> run_server() -> configure_routes()`).
-* **Start Here Reading Guide**: Displays key entry-point files with customized engineering descriptions explaining their exact codebase responsibilities, including a target onboarding understanding percentage.
-* **Unique Central Hotspots**: Computes graph centrality metrics to list the top 5 unique files along with their fan-in count, affected function/module volume, and engineering responsibility annotations.
-* **Qualitative Confidence Metrics**: Replaced raw, noisy percentages with qualitative tags: **High Confidence**, **Medium Confidence**, and **Low Confidence**.
-* **Collapsible Evidence Toggles**: Collapses specific evidence chains behind tidy `▸ Evidence` / `▾ Evidence` details toggles to keep the layout compact and dashboard-sized.
-
-### 2. Interactive Graph Explorer
-* Renders a custom force-directed dependency graph displaying `File`, `Class`, `Function`, `Import`, and `Author` nodes.
-* Implements direct syntax highlighting, edge-path tracing, and real-time filtering queries.
-* Normalizes all file paths to repository-relative paths, stripping host-specific `/var/folders/` or `/tmp/` paths.
-
-### 3. Change Blast Radius & Risk Simulator
-* Simulates refactoring blast radius by executing multi-hop database queries (`[:DEPENDS_ON*1..2]`).
-* Generates a structural risk score (0-100) and displays detailed side-panel call flows showing downstream endpoints and files affected by a change.
-
-### 4. Git Metadata & Author Activity Dashboard
-* Displays default branch status, contributor counts, total commit logs, and a recent commit stream.
-* Aggregates active contributor cards and provides a slide-out panel outlining specific contributor file ownership percentages:
-  $$\text{Ownership Score} = \frac{\text{Commits by Contributor to File}}{\text{Total Commits to File}}$$
+RepoMind is a static analysis and codebase intelligence engine. It builds a semantic representation of a repository by parsing abstract syntax trees (ASTs), importing code relationships into a Neo4j graph database, and running a decoupled, dependency-sorted pipeline of specialized intelligence generators.
 
 ---
 
-## 🛠 Tech Stack
+## 🏗 System Architecture Flowchart
 
-* **Backend**: Python 3.9+, FastAPI, Tree-Sitter Parsers (Python, TypeScript, JS, Java), Git CLI bindings.
-* **Frontend**: React, TypeScript, Vite, Tailwind CSS, Framer Motion, D3/SVG.
-* **Database**: Neo4j Graph DB, Cypher query language.
+The following diagram illustrates the complete runtime request-response lifecycle. It details how the frontend React client communicates with the FastAPI routes, how the service layer resolves facts caching, and how the pipeline engine uses topological sorting to execute single-purpose reasoning generators.
+
+```mermaid
+flowchart TD
+    %% Styling Classes
+    classDef startEnd fill:#d4edda,stroke:#28a745,stroke-width:2px,color:#155724;
+    classDef decision fill:#fff3cd,stroke:#ffc107,stroke-width:2px,color:#856404;
+    classDef step fill:#e8f4fd,stroke:#2b8a3e,stroke-width:1px,color:#0b7285;
+    classDef database fill:#f8f9fa,stroke:#6c757d,stroke-width:2px,color:#343a40;
+
+    subgraph ClientLayer ["1. Frontend React Dashboard"]
+        UI[User visits Dashboard page] -->|Request summary metrics| Axios[Axios API Client makes REST call]
+    end
+
+    subgraph APIOrchestration ["2. FastAPI API Router"]
+        Axios -->|Ingest GET Request| Router[routes.py Endpoint Router]
+        Router -->|Delegate orchestration| Service[RepositoryArchitectService Controller]
+    end
+
+    subgraph FactsLayer ["3. Facts Compiler & Caching Layer"]
+        Service -->|Check cache registry| CacheProxy[CachedFactsProvider Proxy]
+        
+        CacheProxy -->|Cache Hit| CacheHit{Is analysis cached?}:::decision
+        CacheHit -->|Yes| ReadCache[Read compiled facts.json from disk]:::step
+        CacheHit -->|No / Cache Miss| BuildFacts[Invoke FactsBuilder Compiler]:::step
+        
+        BuildFacts -->|DIP Protocol| GraphRepo[GraphRepositoryProtocol Interface]
+        GraphRepo -->|Cypher Queries| Neo4jRepo[Neo4jGraphRepository concrete implementation]
+        Neo4jRepo -->|Fetch AST nodes| Neo4j[(Neo4j Graph Database)]:::database
+        
+        Neo4j -->|Return raw nodes & edges| Neo4jRepo
+        Neo4jRepo -->|Translate Cypher records| GraphRepo
+        GraphRepo -->|Compile facts model| BuildFacts
+        BuildFacts -->|Save to disk cache| SaveCache[Write facts.json cache file]:::step
+        SaveCache --> ReadCache
+    end
+
+    subgraph PipelineLayer ["4. Dependency Intelligence Pipeline"]
+        ReadCache --> PipelineEngine[Instantiate RepositoryIntelligencePipeline]
+        PipelineEngine -->|Order steps| Resolver[Topological Sort Step Resolver]
+        Resolver -->|Execute sequential queue| PipelineRegistry[Generator Sequence Queue]
+        
+        PipelineRegistry -->|1. Detect Archetype| Dom[DomainGenerator]:::step
+        PipelineRegistry -->|2. Detect Frameworks| Tech[TechnologyGenerator]:::step
+        PipelineRegistry -->|3. Onboarding Guide| RG[ReadingGuideGenerator]:::step
+        PipelineRegistry -->|4. Code Health| Heal[HealthGenerator]:::step
+        PipelineRegistry -->|5. Observations| Obs[ObservationsGenerator]:::step
+        
+        Dom -.->|Update context| Purpose[PurposeGenerator]:::step
+    end
+
+    PipelineRegistry -->|Collect all outputs| Collate[Collate context variables]:::step
+    Collate -->|Return JSON| Router
+    Router -->|200 OK REST JSON Payload| UI
+
+    %% Assign classes
+    class UI,Axios step;
+    class Router,Service step;
+    class CacheProxy,ReadCache,BuildFacts,GraphRepo,Neo4jRepo,SaveCache step;
+    class Resolver,PipelineRegistry,Dom,Tech,RG,Heal,Obs,Purpose,Collate step;
+    class Neo4j database;
+    class CacheHit decision;
+```
 
 ---
 
-## 📦 Setup & Installation
+## ⚙️ Topological Sort & Cycle Detection Flowchart
 
-### 1. Setup Neo4j Database
-Ensure a local Neo4j instance is running on port `7687` (Bolt) and `7474` (HTTP):
-```bash
-docker run \
-    -d \
-    --name repomind-neo4j \
-    -p 7474:7474 -p 7687:7687 \
-    -e NEO4J_AUTH=neo4j/password \
-    neo4j:latest
+The following flowchart outlines the recursive DFS three-state (`0 = unvisited`, `1 = visiting`, `2 = visited`) topological sort algorithm used by the pipeline engine to dynamically resolve execution orders and prevent circular dependencies:
+
+```mermaid
+flowchart TD
+    %% Styling Classes
+    classDef startEnd fill:#d4edda,stroke:#28a745,stroke-width:2px,color:#155724;
+    classDef decision fill:#fff3cd,stroke:#ffc107,stroke-width:2px,color:#856404;
+    classDef step fill:#e8f4fd,stroke:#2b8a3e,stroke-width:1px,color:#0b7285;
+    classDef error fill:#f8d7da,stroke:#dc3545,stroke-width:2px,color:#721c24;
+
+    Start([1. Begin resolve_order]):::startEnd --> InitStates[Set all generator states to 0 / unvisited]:::step
+    InitStates --> CheckLoop{More generators in registry?}:::decision
+    
+    CheckLoop -->|Yes| SelectGen[Select next generator class]:::step
+    SelectGen --> CallVisit[Call visit generator]:::step
+    CheckLoop -->|No| End([Return resolved order list]):::startEnd
+    
+    CallVisit --> GetState{Check state of current generator}:::decision
+    GetState -->|State = 2 / visited| ReturnVisit[Return to caller]:::step
+    GetState -->|State = 1 / visiting| RaiseCycle[Raise PipelineDependencyError Circular Loop!]:::error
+    GetState -->|State = 0 / unvisited| TransitionVisiting[Set state to 1 / visiting]:::step
+    
+    TransitionVisiting --> PushStack[Push key to path stack]:::step
+    PushStack --> CheckDeps{Has required dependencies?}:::decision
+    
+    CheckDeps -->|Yes| LoopDeps[For each required key in requires list]:::step
+    LoopDeps --> FindDepCls[Look up dependency generator class]:::step
+    FindDepCls --> CallVisitRecurse[Recursively call visit]:::step
+    CallVisitRecurse --> LoopDeps
+    
+    CheckDeps -->|No| PopStack[Pop key from path stack]:::step
+    LoopDeps -->|Finished all deps| PopStack
+    
+    PopStack --> TransitionVisited[Set state to 2 / visited]:::step
+    TransitionVisited --> AppendOrder[Append generator to order list]:::step
+    AppendOrder --> ReturnVisit
 ```
 
-### 2. Start Python FastAPI Server
-```bash
-cd backend
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-uvicorn app.main:app --port 8000 --reload
-```
-Interactive docs will be exposed at `http://localhost:8000/docs`.
+---
 
-### 3. Start Frontend Dev Server
-In the root directory:
-```bash
-npm install
-npm run dev -- --port 5174
+## 🏗 Directory Structure
+
+```text
+backend/
+├── app/
+│   ├── api/
+│   │   └── routes.py                 # REST Endpoints mapping web clients to controllers
+│   ├── models/
+│   │   └── schemas.py                # Pydantic Schemas validating requests/responses
+│   ├── services/
+│   │   ├── repository_architect.py   # Main orchestrator service layer
+│   │   └── repository_intelligence/  # Decoupled intelligence pipeline folder
+│   │       ├── engine/
+│   │       │   ├── pipeline.py       # Dependency resolution, sorting, and cycle checks
+│   │       │   ├── context.py        # execution state maps
+│   │       │   └── models.py         # Response schemas
+│   │       ├── facts/
+│   │       │   ├── facts_builder.py  # Compiles all AST and graph parameters into facts dict
+│   │       │   ├── graph_repository.py # Interface protocols and concrete Neo4j operations
+│   │       │   ├── cache_provider.py # Cache resolution provider proxy
+│   │       │   ├── cache.py          # Local facts cache manager
+│   │       │   └── graph_analyzer.py # Graph metric calculations (centrality, PageRank)
+│   │       └── generators/           # Decoupled pipeline steps
+│   │           ├── base_generator.py # Base step class with output_key & requires fields
+│   │           ├── domain_generator.py
+│   │           ├── technology_generator.py
+│   │           ├── purpose_generator.py
+│   │           ├── execution_flow_generator.py
+│   │           ├── reading_guide_generator.py
+│   │           ├── layers_generator.py
+│   │           ├── architecture_generator.py
+│   │           ├── critical_files_generator.py
+│   │           ├── complexity_generator.py
+│   │           ├── health_generator.py
+│   │           └── observations_generator.py
+│   └── main.py                       # FastAPI application entry point
+└── requirements.txt
 ```
-Access the dashboard at `http://localhost:5174`.
+
+---
+
+## ⚡ Key Core Implementations
+
+### 1. Dynamic Dependency-Driven Pipeline Engine
+Generators do not execute in a static list. Each generator declares its prerequisite context requirements via `requires: List[str]`. The execution engine resolves these dependencies at runtime using a three-state Depth-First Search (DFS) topological sort:
+* **Cycle Detection**: The resolver tracks states (`0 = unvisited`, `1 = visiting`, `2 = visited`). If a cycle is detected (e.g. `A -> B -> C -> A`), the engine throws a `PipelineDependencyError` to prevent runtime locks.
+* **Latency Observability**: Measures step execution times in milliseconds, reporting profiling durations directly to logs.
+
+### 2. Isolated Facts Abstraction Layer
+Cypher query definitions and database queries are abstracted into `GraphRepositoryProtocol` (implemented by `Neo4jGraphRepository`). The `FactsBuilder` consumes this repository interface, compiling data symbols (files, functions, imports) into a single, canonical JSON facts dictionary. Caching is handled at the proxy layer by `CachedFactsProvider`, ensuring generators run completely database-free.
+
+---
+
+## ⚙️ Setup and Installation
+
+### Backend Setup
+1. Clone the repository and configure a Python virtual environment:
+   ```bash
+   cd backend
+   python3 -m venv venv
+   source venv/bin/activate
+   pip install -r requirements.txt
+   ```
+2. Set up environment configurations matching your local Neo4j database instance:
+   ```bash
+   export NEO4J_URI="bolt://localhost:7687"
+   export NEO4J_USER="neo4j"
+   export NEO4J_PASSWORD="password"
+   ```
+3. Run the FastAPI development server:
+   ```bash
+   uvicorn app.main:app --reload --port 8000
+   ```
+
+### Frontend Setup
+1. Install node dependencies:
+   ```bash
+   npm install
+   ```
+2. Start the local Vite development server:
+   ```bash
+   npm run dev
+   ```
+   Open [http://localhost:5173](http://localhost:5173) in your browser to access the dashboard.
