@@ -35,7 +35,7 @@ import type { RealGraphNode, RealGraphEdge } from '../services/repoApi';
 import { useRepo } from '../contexts/RepoContext';
 
 import { useExplorerState } from '../hooks/useExplorerState';
-import { useExplorerLayout } from '../hooks/useExplorerLayout';
+import { useExplorerLayout, PositionedNode, Subsystem } from '../hooks/useExplorerLayout';
 import { useSpotlightMode } from '../hooks/useSpotlightMode';
 import { useExplorerCamera } from '../hooks/useExplorerCamera';
 
@@ -124,6 +124,108 @@ const buildMockFlowEdges = (): Edge[] =>
     animated: false,
   }));
 
+// ── Pure function to convert layout metadata into React Flow elements ──────────
+function buildReactFlowGraph(
+  viewMode: 'system' | 'graph',
+  layoutNodes: PositionedNode[],
+  subsystems: Subsystem[],
+  rawNodes: RealGraphNode[],
+  rawEdges: RealGraphEdge[],
+  expandedSubsystemId: string | null,
+  isRealGraph: boolean,
+  expandSubsystemHandler: (id: string) => void,
+  collapseSubsystemHandler: () => void,
+  zoomToNodeHandler: (x: number, y: number, zoomLevel: number) => void,
+  resetCameraHandler: () => void
+): { nodes: Node[]; edges: Edge[] } {
+  if (viewMode === 'graph') {
+    const nodes = isRealGraph ? buildRealFlowNodes(rawNodes) : buildMockFlowNodes();
+    const edges = isRealGraph ? buildRealFlowEdges(rawEdges) : buildMockFlowEdges();
+    return { nodes, edges };
+  }
+
+  const nodes = layoutNodes.map(n => {
+    const isSubsystem = n.id.startsWith('subsystem:');
+    if (isSubsystem) {
+      const subId = n.id.replace('subsystem:', '');
+      const subsystem = subsystems.find(s => s.id === subId);
+      return {
+        id: n.id,
+        type: 'subsystemNode',
+        position: { x: n.x, y: n.y },
+        width: n.width,
+        height: n.height,
+        data: {
+          id: subId,
+          label: subsystem?.name.replace(' Area', '') ?? subId,
+          description: subsystem?.description ?? '',
+          filesCount: subsystem?.fileIds.length ?? 0,
+          functionsCount: subsystem?.metrics.functions ?? 0,
+          classesCount: subsystem?.metrics.classes ?? 0,
+          entryFile: subsystem?.entryFiles?.[0]?.split('/')?.pop() ?? '',
+          risk: subsystem?.risk ?? 'low',
+          isExpanded: expandedSubsystemId === subId,
+          onExpandToggle: (id: string) => {
+            if (expandedSubsystemId === id) {
+              collapseSubsystemHandler();
+              resetCameraHandler();
+            } else {
+              expandSubsystemHandler(id);
+              zoomToNodeHandler(n.x + n.width / 2, n.y + n.height / 2, 0.85);
+            }
+          }
+        }
+      };
+    } else {
+      const fileNode = rawNodes.find(r => r.id === n.id);
+      return {
+        id: n.id,
+        type: 'realNode',
+        position: { x: n.x, y: n.y },
+        data: {
+          label: fileNode?.label ?? n.id.split('/').pop() ?? n.id,
+          type: fileNode?.type ?? 'file',
+          metadata: fileNode?.metadata ?? {}
+        }
+      };
+    }
+  });
+
+  const edgesList: Edge[] = [];
+  subsystems.forEach(sub => {
+    sub.dependencies.forEach(depId => {
+      edgesList.push({
+        id: `subsystem-edge:${sub.id}-${depId}`,
+        source: `subsystem:${sub.id}`,
+        target: `subsystem:${depId}`,
+        type: 'customEdge',
+        data: { label: 'depends' }
+      });
+    });
+  });
+
+  if (expandedSubsystemId) {
+    const activeSub = subsystems.find(s => s.id === expandedSubsystemId);
+    if (activeSub) {
+      rawEdges.forEach(e => {
+        const isSrcInSub = activeSub.fileIds.includes(e.source);
+        const isTgtInSub = activeSub.fileIds.includes(e.target);
+        if (isSrcInSub && isTgtInSub) {
+          edgesList.push({
+            id: e.id,
+            source: e.source,
+            target: e.target,
+            type: 'customEdge',
+            data: { label: e.type }
+          });
+        }
+      });
+    }
+  }
+
+  return { nodes, edges: edgesList };
+}
+
 // ── AST Tree View (unchanged) ─────────────────────────────────────────────────
 const ASTTreeView: React.FC<{
   node: ASTNode;
@@ -151,7 +253,7 @@ const ASTTreeView: React.FC<{
         <span className="text-[#FF6F61] font-semibold">{node.type}</span>
         {node.name && (
           <>
-            <span className="text-slate-600">:</span>
+            <span className="text-slate-655">:</span>
             <span className="text-[#DAA520] truncate max-w-[100px]">{node.name}</span>
           </>
         )}
@@ -399,7 +501,7 @@ const GraphLoadingOverlay: React.FC = () => (
       className="glass rounded-2xl px-8 py-6 border border-white/8 flex flex-col items-center gap-4 shadow-3xl bg-slate-950/85"
     >
       <div className="relative">
-        <Loader2 size={28} className="text-[#FF4500] animate-spin" />
+        <Loader2 size={28} className="text-[#FF6B1A] animate-spin" />
       </div>
       <div className="text-center">
         <div className="text-sm font-semibold text-slate-200 font-[Syne]">Loading System map</div>
@@ -416,7 +518,7 @@ const GraphEmptyState: React.FC = () => (
       animate={{ opacity: 1, y: 0 }}
       className="glass rounded-2xl px-8 py-7 border border-white/8 flex flex-col items-center gap-3 shadow-3xl text-center max-w-xs bg-slate-950/85"
     >
-      <Database size={28} className="text-slate-655" />
+      <Database size={28} className="text-slate-600" />
       <div>
         <div className="text-sm font-semibold text-slate-300 font-[Syne]">No Graph Data</div>
         <div className="text-[11px] text-slate-500 mt-1 leading-relaxed">
@@ -464,7 +566,7 @@ const GraphExplorerInner: React.FC = () => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState<string>('all');
-  const [hoveredEdge, setHoveredEdge] = useState<Edge | null>(null);
+  const [, setHoveredEdge] = useState<Edge | null>(null);
 
   // 1. Exploration hooks state
   const {
@@ -485,7 +587,7 @@ const GraphExplorerInner: React.FC = () => {
     return mockFileNodes.find(n => n.id === selectedFileId) || null;
   }, [isRealGraph, selectedFileId]);
 
-  // 2. Compute dynamic layout coordinates
+  // 2. Compute dynamic layout coordinates (layout hook contains zero React Flow state updates)
   const { subsystems, layoutNodes } = useExplorerLayout(
     rawNodes.length > 0 ? rawNodes : [],
     rawEdges.length > 0 ? rawEdges : [],
@@ -494,121 +596,38 @@ const GraphExplorerInner: React.FC = () => {
 
   const { zoomToNode, resetCamera } = useExplorerCamera();
 
-  // 3. Derive flow nodes / edges based on active view mode
-  const initialFlowNodes = useMemo(() => {
-    if (viewMode === 'graph') {
-      return isRealGraph ? buildRealFlowNodes(rawNodes) : buildMockFlowNodes();
-    }
-    
-    // Map layoutNodes directly to React Flow compatible Nodes
-    return layoutNodes.map(n => {
-      const isSubsystem = n.id.startsWith('subsystem:');
-      if (isSubsystem) {
-        const subId = n.id.replace('subsystem:', '');
-        const subsystem = subsystems.find(s => s.id === subId);
-        return {
-          id: n.id,
-          type: 'subsystemNode',
-          position: { x: n.x, y: n.y },
-          width: n.width,
-          height: n.height,
-          data: {
-            id: subId,
-            label: subsystem?.name.replace(' Area', '') ?? subId,
-            description: subsystem?.description ?? '',
-            filesCount: subsystem?.fileIds.length ?? 0,
-            functionsCount: subsystem?.metrics.functions ?? 0,
-            classesCount: subsystem?.metrics.classes ?? 0,
-            entryFile: subsystem?.entryFiles?.[0]?.split('/')?.pop() ?? '',
-            risk: subsystem?.risk ?? 'low',
-            isExpanded: expandedSubsystemId === subId,
-            onExpandToggle: (id: string) => {
-              if (expandedSubsystemId === id) {
-                collapseSubsystem();
-                resetCamera();
-              } else {
-                expandSubsystem(id);
-                zoomToNode(n.x + n.width / 2, n.y + n.height / 2, 0.85);
-              }
-            }
-          }
-        };
-      } else {
-        const fileNode = rawNodes.find(r => r.id === n.id);
-        return {
-          id: n.id,
-          type: 'realNode',
-          position: { x: n.x, y: n.y },
-          data: {
-            label: fileNode?.label ?? n.id.split('/').pop() ?? n.id,
-            type: fileNode?.type ?? 'file',
-            metadata: fileNode?.metadata ?? {}
-          }
-        };
-      }
-    });
-  }, [viewMode, layoutNodes, subsystems, expandedSubsystemId, isRealGraph, rawNodes, expandSubsystem, collapseSubsystem, zoomToNode, resetCamera]);
+  // 3. Pure React Flow Graph builder coordinates
+  const initialGraph = useMemo(() => {
+    return buildReactFlowGraph(
+      viewMode,
+      layoutNodes,
+      subsystems,
+      rawNodes,
+      rawEdges,
+      expandedSubsystemId,
+      isRealGraph,
+      expandSubsystem,
+      collapseSubsystem,
+      zoomToNode,
+      resetCamera
+    );
+  }, [viewMode, layoutNodes, subsystems, rawNodes, rawEdges, expandedSubsystemId, isRealGraph, expandSubsystem, collapseSubsystem, zoomToNode, resetCamera]);
 
-  const initialFlowEdges = useMemo(() => {
-    if (viewMode === 'graph') {
-      return isRealGraph ? buildRealFlowEdges(rawEdges) : buildMockFlowEdges();
-    }
+  const [nodes, setNodes, onNodesChange] = useNodesState(initialGraph.nodes);
+  const [edges, setEdges, onEdgesChange] = useEdgesState(initialGraph.edges);
 
-    // Filter edges: only connect subsystem blocks or visible expanded files
-    const edgesList: Edge[] = [];
-    
-    // Subsystem dependency paths
-    subsystems.forEach(sub => {
-      sub.dependencies.forEach(depId => {
-        edgesList.push({
-          id: `subsystem-edge:${sub.id}-${depId}`,
-          source: `subsystem:${sub.id}`,
-          target: `subsystem:${depId}`,
-          type: 'customEdge',
-          data: { label: 'depends' }
-        });
-      });
-    });
-
-    // File imports within subsystem
-    if (expandedSubsystemId) {
-      const activeSub = subsystems.find(s => s.id === expandedSubsystemId);
-      if (activeSub) {
-        rawEdges.forEach(e => {
-          const isSrcInSub = activeSub.fileIds.includes(e.source);
-          const isTgtInSub = activeSub.fileIds.includes(e.target);
-          if (isSrcInSub && isTgtInSub) {
-            edgesList.push({
-              id: e.id,
-              source: e.source,
-              target: e.target,
-              type: 'customEdge',
-              data: { label: e.type }
-            });
-          }
-        });
-      }
-    }
-
-    return edgesList;
-  }, [viewMode, subsystems, expandedSubsystemId, rawEdges, isRealGraph]);
-
-  const [nodesState, setNodes, onNodesChange] = useNodesState(initialFlowNodes);
-  const [edgesState, setEdges, onEdgesChange] = useEdgesState(initialFlowEdges);
-
-  // Sync state changes back to React Flow nodes/edges
+  // Controlled nodes/edges synchronizer
+  // Only updates controlled states when raw graph arrays, toggles, or layout levels change.
+  // This completely eliminates loops because dragging nodes does not recalculate initialGraph.
   useEffect(() => {
-    setNodes(initialFlowNodes);
-  }, [initialFlowNodes, setNodes]);
+    setNodes(initialGraph.nodes);
+    setEdges(initialGraph.edges);
+  }, [initialGraph, setNodes, setEdges]);
 
-  useEffect(() => {
-    setEdges(initialFlowEdges);
-  }, [initialFlowEdges, setEdges]);
-
-  // 4. Integrate spotlight visibility calculations
+  // 4. Spotlight projection layers derived on-the-fly during render (No state updates inside)
   const { spotlightNodes, spotlightEdges } = useSpotlightMode(
-    nodesState,
-    edgesState,
+    nodes,
+    edges,
     selectedFileId,
     expandedSubsystemId
   );
