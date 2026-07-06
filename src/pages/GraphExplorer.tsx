@@ -480,6 +480,11 @@ const GraphExplorerInner: React.FC = () => {
 
   const isRealGraph = rawNodes.length > 0;
 
+  const selectedMockNode = useMemo(() => {
+    if (isRealGraph) return null;
+    return mockFileNodes.find(n => n.id === selectedFileId) || null;
+  }, [isRealGraph, selectedFileId]);
+
   // 2. Compute dynamic layout coordinates
   const { subsystems, layoutNodes } = useExplorerLayout(
     rawNodes.length > 0 ? rawNodes : [],
@@ -797,9 +802,9 @@ const GraphExplorerInner: React.FC = () => {
                 filteredMockNodes.map(node => (
                   <button
                     key={node.id}
-                    onClick={() => { setSelectedMockNode(node); }}
+                    onClick={() => { selectFile(node.id); }}
                     className={`w-full text-left px-2.5 py-2 rounded-lg transition-all flex items-center gap-2 group border border-transparent ${
-                      selectedMockNode?.id === node.id ? 'bg-[#FF6B1A]/15 border border-[#FF6B1A]/20 shadow-md' : 'hover:bg-white/[0.04]'
+                      selectedFileId === node.id ? 'bg-[#FF6B1A]/15 border border-[#FF6B1A]/20 shadow-md' : 'hover:bg-white/[0.04]'
                     }`}
                   >
                     <div
@@ -917,7 +922,7 @@ const GraphExplorerInner: React.FC = () => {
           <div key="mock-panel" className="absolute right-0 top-0 h-full w-80 z-20">
             <CodeInspector
               node={selectedMockNode}
-              onClose={() => setSelectedMockNode(null)}
+              onClose={clearSelection}
             />
           </div>
         )}
