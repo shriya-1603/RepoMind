@@ -1,20 +1,22 @@
 import React, { memo } from 'react';
-import { getBezierPath, EdgeLabelRenderer, BaseEdge } from '@xyflow/react';
+import { getBezierPath, BaseEdge } from '@xyflow/react';
 import type { EdgeProps } from '@xyflow/react';
 
 const CustomEdge: React.FC<EdgeProps> = memo(({
   id, sourceX, sourceY, targetX, targetY,
   sourcePosition, targetPosition, data, selected,
 }) => {
-  const [edgePath, labelX, labelY] = getBezierPath({
+  const [edgePath] = getBezierPath({
     sourceX, sourceY, sourcePosition,
     targetX, targetY, targetPosition,
   });
 
-  const isHighlighted = selected || !!data?.highlighted;
-  const isDimmed = !isHighlighted && !!data?.dimmed;
+  const isHighlighted = selected || !!data?.isHighlighted;
+  const opacity = data?.opacity !== undefined ? data.opacity : 1;
+  const isExecutionFlow = String(data?.label).toLowerCase().includes('call') || String(data?.label).toLowerCase().includes('flow');
 
-  const strokeColor = isHighlighted ? '#f43f5e' : isDimmed ? 'rgba(255, 255, 255, 0.05)' : 'rgba(99, 102, 241, 0.4)';
+  // Constrain visual taxonomy: gray for static imports, orange for dynamic call flows
+  const strokeColor = isExecutionFlow ? '#f97316' : '#475569';
   const strokeWidth = isHighlighted ? 2.5 : 1;
 
   return (
@@ -24,9 +26,9 @@ const CustomEdge: React.FC<EdgeProps> = memo(({
         <path
           d={edgePath}
           fill="none"
-          stroke="rgba(244,63,94,0.25)"
+          stroke={isExecutionFlow ? 'rgba(249,115,22,0.25)' : 'rgba(71,85,105,0.25)'}
           strokeWidth={8}
-          style={{ filter: 'blur(4px)' }}
+          style={{ filter: 'blur(4px)', opacity }}
         />
       )}
 
@@ -36,47 +38,29 @@ const CustomEdge: React.FC<EdgeProps> = memo(({
         style={{
           stroke: strokeColor,
           strokeWidth,
-          strokeDasharray: isHighlighted ? '4 4' : 'none',
-          opacity: isDimmed ? 0.15 : 1,
-          transition: 'all 0.2s ease',
+          strokeDasharray: isExecutionFlow ? '4 4' : 'none',
+          opacity,
+          transition: 'opacity 0.25s ease, stroke-width 0.25s ease',
         }}
         markerEnd={`url(#arrow-${isHighlighted ? 'selected' : 'default'})`}
       />
 
-      {/* Animated particle on highlighted edge */}
-      {isHighlighted && (
-        <circle r="3" fill="#f43f5e" style={{ filter: 'drop-shadow(0 0 4px #f43f5e)' }}>
-          <animateMotion dur="1.2s" repeatCount="indefinite" path={edgePath} />
+      {/* Animated particle on execution flows */}
+      {isExecutionFlow && opacity > 0.1 && (
+        <circle r="3" fill="#f97316" style={{ filter: 'drop-shadow(0 0 4px #f97316)' }}>
+          <animateMotion dur="1.5s" repeatCount="indefinite" path={edgePath} />
         </circle>
       )}
 
       {/* SVG Arrow Defs */}
       <defs>
         <marker id="arrow-default" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
-          <path d="M0,0 L0,6 L8,3 z" fill="rgba(99,102,241,0.5)" />
+          <path d="M0,0 L0,6 L8,3 z" fill="#475569" />
         </marker>
         <marker id="arrow-selected" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
-          <path d="M0,0 L0,6 L8,3 z" fill="#a78bfa" />
+          <path d="M0,0 L0,6 L8,3 z" fill="#f97316" />
         </marker>
       </defs>
-
-      {/* Edge label on hover */}
-      {selected && data?.label && (
-        <EdgeLabelRenderer>
-          <div
-            style={{
-              position: 'absolute',
-              transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`,
-              pointerEvents: 'all',
-            }}
-            className="nodrag nopan"
-          >
-            <div className="glass px-2 py-0.5 rounded-full text-[10px] font-mono text-indigo-300 border border-indigo-500/30">
-              {String(data.label)}
-            </div>
-          </div>
-        </EdgeLabelRenderer>
-      )}
     </>
   );
 });

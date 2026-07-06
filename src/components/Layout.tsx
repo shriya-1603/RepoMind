@@ -17,7 +17,7 @@ interface LayoutProps {
 
 const navItems = [
   { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard',       shortcut: '1' },
-  { path: '/graph',     icon: GitBranch,        label: 'Graph Explorer',  shortcut: '2' },
+  { path: '/graph',     icon: GitBranch,        label: 'System Explorer',  shortcut: '2' },
   { path: '/search',   icon: Search,            label: 'Semantic Search', shortcut: '3' },
   { path: '/impact',   icon: Zap,               label: 'Impact Analysis', shortcut: '4' },
   { path: '/onboard',  icon: Bot,               label: 'AI Onboarding',   shortcut: '5' },

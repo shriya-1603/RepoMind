@@ -48,7 +48,7 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose }) => {
   // Command palette contents
   const actions: CommandItem[] = [
     { id: 'act-dash',   title: 'Jump to Dashboard',         subtitle: 'Overview of repository metrics', category: 'Actions', icon: LayoutDashboard, action: () => { navigate('/dashboard'); onClose(); } },
-    { id: 'act-graph',  title: 'Open Graph Explorer',       subtitle: 'Interactive dependency visualization', category: 'Actions', icon: GitBranch, action: () => { navigate('/graph'); onClose(); } },
+    { id: 'act-graph',  title: 'Open System Explorer',       subtitle: 'Interactive dependency visualization', category: 'Actions', icon: GitBranch, action: () => { navigate('/graph'); onClose(); } },
     { id: 'act-search', title: 'Start Semantic Search',     subtitle: 'Ask natural language code questions', category: 'Actions', icon: Sparkles, action: () => { navigate('/search'); onClose(); } },
     { id: 'act-impact', title: 'Simulate API Refactor',     subtitle: 'Impact analysis for api.ts', category: 'Actions', icon: Zap, action: () => { navigate('/impact'); onClose(); } },
     { id: 'act-onbd',   title: 'Start AI Onboarding',       subtitle: 'Guided walkthrough of codebase', category: 'Actions', icon: Shield, action: () => { navigate('/onboard'); onClose(); } },
