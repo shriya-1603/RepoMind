@@ -4,6 +4,28 @@ RepoMind is a static analysis and codebase intelligence engine. It builds a sema
 
 ---
 
+## 🖥️ Screen Previews
+<table width="100%">
+  <tr>
+    <td width="50%" align="center">
+      <b>Landing Page</b><br/>
+      <img src="docs/screenshots/landing.png" alt="Landing Page Preview" width="100%"/>
+    </td>
+    <td width="50%" align="center">
+      <b>Dashboard</b><br/>
+      <img src="docs/screenshots/dashboard.png" alt="Dashboard Preview" width="100%"/>
+    </td>
+  </tr>
+  <tr>
+    <td width="100%" align="center" colspan="2">
+      <b>System Explorer (Interactive Code Graph)</b><br/>
+      <img src="docs/screenshots/system_explorer.png" alt="System Explorer Preview" width="100%"/>
+    </td>
+  </tr>
+</table>
+
+---
+
 ## 🏗 System Architecture Flowchart
 
 The following diagram illustrates the complete runtime request-response lifecycle. It details how the frontend React client communicates with the FastAPI routes, how the service layer resolves facts caching, and how the pipeline engine uses topological sorting to execute single-purpose reasoning generators.

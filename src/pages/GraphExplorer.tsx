@@ -1648,13 +1648,19 @@ const GraphExplorerInner: React.FC = () => {
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <svg width="24" height="4" style={{ flexShrink: 0 }}>
-                  <line x1="0" y1="2" x2="24" y2="2" stroke="#f97316" strokeWidth="2" />
+                  <line x1="0" y1="2" x2="24" y2="2" stroke="#ef4444" strokeWidth="2" />
                 </svg>
-                <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.8)' }}>Resolved Calls (Solid Orange)</span>
+                <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.8)' }}>Proven Calls (Solid Red)</span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <svg width="24" height="4" style={{ flexShrink: 0 }}>
-                  <line x1="0" y1="2" x2="24" y2="2" stroke="#64748b" strokeWidth="1.5" strokeDasharray="1 4" />
+                  <line x1="0" y1="2" x2="24" y2="2" stroke="#f59e0b" strokeWidth="2" strokeDasharray="4 3" />
+                </svg>
+                <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.8)' }}>Inferred Calls (Dashed Amber)</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <svg width="24" height="4" style={{ flexShrink: 0 }}>
+                  <line x1="0" y1="2" x2="24" y2="2" stroke="#64748b" strokeWidth="1.5" strokeDasharray="2 4" />
                 </svg>
                 <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.8)' }}>Unresolved Calls (Muted Dotted)</span>
               </div>

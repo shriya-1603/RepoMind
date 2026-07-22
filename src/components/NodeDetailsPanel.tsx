@@ -1125,6 +1125,12 @@ export const RelationshipDetailsPanel: React.FC<RelationshipDetailsPanelProps> =
               Evidence / Provenance
             </h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1px', background: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.04)', borderRadius: '8px', overflow: 'hidden' }}>
+              {properties.resolution_method && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', borderBottom: '1px solid rgba(255,255,255,0.03)', fontSize: '11.5px' }}>
+                  <span style={{ color: 'rgba(148,163,184,0.6)' }}>Resolution Method</span>
+                  <span style={{ color: '#10b981', fontFamily: 'JetBrains Mono, monospace', fontSize: '11px', fontWeight: 600 }}>{properties.resolution_method}</span>
+                </div>
+              )}
               {evidenceVar && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', borderBottom: '1px solid rgba(255,255,255,0.03)', fontSize: '11.5px' }}>
                   <span style={{ color: 'rgba(148,163,184,0.6)' }}>Variable</span>

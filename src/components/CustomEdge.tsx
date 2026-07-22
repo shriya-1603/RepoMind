@@ -7,11 +7,12 @@ const CustomEdge: React.FC<EdgeProps> = memo(({
   data, selected,
 }) => {
   const isHighlighted = selected || !!data?.isHighlighted;
-  const opacity = data?.opacity !== undefined ? data.opacity : 1;
+  const opacity: number = typeof data?.opacity === 'number' ? data.opacity : 1;
 
   const depType = String(data?.type || data?.label || '').toUpperCase();
-  const confidence = String(data?.properties?.confidence || '').toUpperCase();
-  const resolution = String(data?.properties?.resolution_method || '').toUpperCase();
+  const props = (data?.properties || {}) as any;
+  const confidence = String(props.confidence || '').toUpperCase();
+  const resolution = String(props.resolution_method || '').toUpperCase();
 
   let strokeColor = '#475569'; // default slate-600
   let strokeWidth = isHighlighted ? 2.5 : 1.25;
@@ -35,18 +36,36 @@ const CustomEdge: React.FC<EdgeProps> = memo(({
     strokeWidth = isHighlighted ? 2.5 : 1.25;
     strokeDasharray = 'none';
   } else if (depType.includes('CALL')) {
-    if (confidence === 'NONE' || resolution === 'UNRESOLVED' || depType.includes('UNRESOLVED')) {
+    const isResolved = props.resolved === true || String(props.resolved).toLowerCase() === 'true';
+    if (!isResolved || confidence === 'NONE' || resolution === 'UNRESOLVED' || depType.includes('UNRESOLVED')) {
       // UNRESOLVED_MEMBER_CALL: dotted visually muted unresolved edge
       strokeColor = '#64748b';
-      strokeDasharray = '1 4';
+      strokeDasharray = '2 4';
       strokeWidth = 1.25;
       isAnimated = false;
     } else {
-      // deterministic FUNCTION_CALLS_FUNCTION: solid orange call edge
-      strokeColor = '#f97316';
-      strokeWidth = isHighlighted ? 2.5 : 1.25;
-      strokeDasharray = 'none';
-      isAnimated = true;
+      const resMethod = String(props.resolution_method || '').toLowerCase();
+      const isInferred = resMethod.includes('inference') || 
+                         resMethod.includes('narrowing') || 
+                         resMethod.includes('binding') || 
+                         resMethod.includes('return') || 
+                         resMethod.includes('iterator') || 
+                         resMethod.includes('collection') ||
+                         resMethod.includes('attribute');
+      
+      if (isInferred) {
+        // Inferred relationship: dashed amber call edge
+        strokeColor = '#f59e0b';
+        strokeWidth = isHighlighted ? 2.5 : 1.25;
+        strokeDasharray = '4 3';
+        isAnimated = true;
+      } else {
+        // Deterministic proven relationship: solid orange call edge
+        strokeColor = '#ef4444';
+        strokeWidth = isHighlighted ? 2.5 : 1.25;
+        strokeDasharray = 'none';
+        isAnimated = true;
+      }
     }
   } else if (depType.includes('INHERIT') || depType.includes('EXTEND')) {
     strokeColor = '#a855f7'; // purple inheritance path
