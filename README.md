@@ -4,6 +4,9 @@ RepoMind is a static analysis and codebase intelligence engine. It builds a sema
 
 ---
 
+
+
+
 ## 🖥️ Screen Previews
 <table width="100%">
   <tr>
@@ -13,6 +16,11 @@ RepoMind is a static analysis and codebase intelligence engine. It builds a sema
     </td>
     <td width="50%" align="center">
       <b>Dashboard</b><br/>
+      
+
+  https://github.com/user-attachments/assets/101bdd83-19ce-45e3-9e4a-1e63d9489b2c
+
+
       <img src="docs/screenshots/dashboard.png" alt="Dashboard Preview" width="100%"/>
     </td>
   </tr>
