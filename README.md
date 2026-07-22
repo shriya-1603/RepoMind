@@ -17,8 +17,7 @@ RepoMind is a static analysis and codebase intelligence engine. It builds a sema
 https://github.com/user-attachments/assets/80e0652b-3416-4383-afdd-ec4489c27fee
 
 
-    </td>
-    <td width="50%" align="center">
+
       <b>Dashboard</b><br/>
       
 
@@ -27,7 +26,7 @@ https://github.com/user-attachments/assets/80e0652b-3416-4383-afdd-ec4489c27fee
 https://github.com/user-attachments/assets/42e50ddf-8804-4d20-8632-963373f07225
 
 
-    </td>
+    
   </tr>
   <tr>
     <td width="100%" align="center" colspan="2">
@@ -40,7 +39,7 @@ https://github.com/user-attachments/assets/91805639-3196-4196-b861-c47b11717d42
 
 
 
-    </td>
+  
   </tr>
 </table>
 
