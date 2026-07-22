@@ -13,8 +13,9 @@ RepoMind is a static analysis and codebase intelligence engine. It builds a sema
     <td width="50%" align="center">
       <b>Landing Page</b><br/>
       
+[![Alt Text](Landing page)](https://github.com/user-attachments/assets/3743284a-a49e-4033-ad42-c5be9ab06c01)
 
-https://github.com/user-attachments/assets/3743284a-a49e-4033-ad42-c5be9ab06c01
+
 
 
       <img src="docs/screenshots/landing.png" alt="Landing Page Preview" width="100%"/>
