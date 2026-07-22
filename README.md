@@ -13,21 +13,20 @@ RepoMind is a static analysis and codebase intelligence engine. It builds a sema
     <td width="50%" align="center">
       <b>Landing Page</b><br/>
       
-[![Alt Text](Landing page)](https://github.com/user-attachments/assets/3743284a-a49e-4033-ad42-c5be9ab06c01)
+
+https://github.com/user-attachments/assets/80e0652b-3416-4383-afdd-ec4489c27fee
 
 
-
-
-      <img src="docs/screenshots/landing.png" alt="Landing Page Preview" width="100%"/>
     </td>
     <td width="50%" align="center">
       <b>Dashboard</b><br/>
       
 
-  https://github.com/user-attachments/assets/101bdd83-19ce-45e3-9e4a-1e63d9489b2c
 
 
-      <img src="docs/screenshots/dashboard.png" alt="Dashboard Preview" width="100%"/>
+https://github.com/user-attachments/assets/42e50ddf-8804-4d20-8632-963373f07225
+
+
     </td>
   </tr>
   <tr>
@@ -35,10 +34,12 @@ RepoMind is a static analysis and codebase intelligence engine. It builds a sema
       <b>System Explorer (Interactive Code Graph)</b><br/>
       
 
-https://github.com/user-attachments/assets/49176468-9ca3-4377-aaca-2c334d6c7b6f
 
 
-      <img src="docs/screenshots/system_explorer.png" alt="System Explorer Preview" width="100%"/>
+https://github.com/user-attachments/assets/91805639-3196-4196-b861-c47b11717d42
+
+
+
     </td>
   </tr>
 </table>
