@@ -21,7 +21,7 @@ export const useExplorerState = () => {
     setSelectedFileId(null);
   }, []);
 
-  const selectFile = useCallback((id: string) => {
+  const selectFile = useCallback((id: string | null) => {
     setSelectedFileId(id);
   }, []);
 

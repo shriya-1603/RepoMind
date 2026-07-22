@@ -1,0 +1,24 @@
+{
+  "contains": [
+    {"source": "models.py", "target": "User", "type": "class"},
+    {"source": "models.py", "target": "save", "type": "function"},
+    {"source": "models.py", "target": "Admin", "type": "class"},
+    {"source": "models.py", "target": "save", "type": "function"},
+    {"source": "main.py", "target": "process_param", "type": "function"},
+    {"source": "main.py", "target": "process_local", "type": "function"},
+    {"source": "main.py", "target": "process_nested", "type": "function"},
+    {"source": "main.py", "target": "process_union", "type": "function"}
+  ],
+  "imports": [
+    {"source": "main.py", "target": "models.py"}
+  ],
+  "calls": [
+    {"source": "process_param", "target": "models.py:save"},
+    {"source": "process_local", "target": "models.py:save"}
+  ],
+  "inherits": [],
+  "unresolved_calls": [
+    {"source": "process_nested", "name": "save"},
+    {"source": "process_union", "name": "save"}
+  ]
+}

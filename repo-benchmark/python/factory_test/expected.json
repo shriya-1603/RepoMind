@@ -1,0 +1,35 @@
+{
+  "contains": [
+    {"source": "models.py", "target": "Client", "type": "class"},
+    {"source": "models.py", "target": "send", "type": "function"},
+    {"source": "models.py", "target": "OtherClient", "type": "class"},
+    {"source": "models.py", "target": "send", "type": "function"},
+    {"source": "factories.py", "target": "ClientFactory", "type": "class"},
+    {"source": "factories.py", "target": "create", "type": "function"},
+    {"source": "factories.py", "target": "create_ambiguous", "type": "function"},
+    {"source": "factories.py", "target": "create_unannotated_constructor", "type": "function"},
+    {"source": "factories.py", "target": "create_unresolved", "type": "function"},
+    {"source": "factories.py", "target": "get_external", "type": "function"},
+    {"source": "main.py", "target": "App", "type": "class"},
+    {"source": "main.py", "target": "execute", "type": "function"}
+  ],
+  "imports": [
+    {"source": "factories.py", "target": "models.py"},
+    {"source": "main.py", "target": "models.py"},
+    {"source": "main.py", "target": "factories.py"}
+  ],
+  "calls": [
+    {"source": "execute", "target": "models.py:send"},
+    {"source": "execute", "target": "models.py:send"},
+    {"source": "execute", "target": "factories.py:create"},
+    {"source": "execute", "target": "factories.py:create_unannotated_constructor"},
+    {"source": "execute", "target": "factories.py:create_ambiguous"},
+    {"source": "execute", "target": "factories.py:create_unresolved"},
+    {"source": "create_unresolved", "target": "factories.py:get_external"}
+  ],
+  "inherits": [],
+  "unresolved_calls": [
+    {"source": "execute", "name": "send"},
+    {"source": "execute", "name": "send"}
+  ]
+}

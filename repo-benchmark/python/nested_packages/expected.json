@@ -1,0 +1,15 @@
+{
+  "contains": [
+    {"source": "core/utils.py", "target": "process_data", "type": "function"},
+    {"source": "app.py", "target": "run", "type": "function"}
+  ],
+  "imports": [
+    {"source": "core/__init__.py", "target": "core/utils.py"},
+    {"source": "app.py", "target": "core/__init__.py"}
+  ],
+  "calls": [
+    {"source": "run", "target": "process_data"}
+  ],
+  "inherits": [],
+  "unresolved_calls": []
+}

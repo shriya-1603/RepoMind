@@ -1,0 +1,17 @@
+{
+  "contains": [
+    {"source": "math_utils.py", "target": "process", "type": "function"},
+    {"source": "str_utils.py", "target": "process", "type": "function"},
+    {"source": "main.py", "target": "run", "type": "function"}
+  ],
+  "imports": [
+    {"source": "main.py", "target": "math_utils.py"},
+    {"source": "main.py", "target": "str_utils.py"}
+  ],
+  "calls": [
+    {"source": "run", "target": "process"},
+    {"source": "run", "target": "process"}
+  ],
+  "inherits": [],
+  "unresolved_calls": []
+}

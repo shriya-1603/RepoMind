@@ -1,6 +1,6 @@
 import React, { Suspense, lazy } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import Layout from './components/Layout';
 
 // Lazy load pages for performance
@@ -23,55 +23,89 @@ const PageLoader: React.FC = () => (
   </div>
 );
 
-// ── App ───────────────────────────────────────────────────────────────────
+// ── Shared Page Transition Wrapper ────────────────────────────────────────
+const PageTransition: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <motion.div
+    initial={{ opacity: 0, y: 12, filter: 'blur(4px)' }}
+    animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+    exit={{ opacity: 0, y: -12, filter: 'blur(4px)' }}
+    transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+    className="h-full w-full"
+  >
+    {children}
+  </motion.div>
+);
+
+// ── Animated Routes Container ─────────────────────────────────────────────
+const AnimatedRoutes: React.FC = () => {
+  const location = useLocation();
+
+  return (
+    <AnimatePresence mode="wait">
+      <Routes location={location} key={location.pathname}>
+        {/* Landing page - no layout shell */}
+        <Route path="/" element={<LandingPage />} />
+
+        {/* App pages - with layout */}
+        <Route path="/dashboard" element={
+          <Layout>
+            <Suspense fallback={<PageLoader />}>
+              <PageTransition>
+                <Dashboard />
+              </PageTransition>
+            </Suspense>
+          </Layout>
+        } />
+        <Route path="/graph" element={
+          <Layout>
+            <Suspense fallback={<PageLoader />}>
+              <PageTransition>
+                <GraphExplorer />
+              </PageTransition>
+            </Suspense>
+          </Layout>
+        } />
+        <Route path="/search" element={
+          <Layout>
+            <Suspense fallback={<PageLoader />}>
+              <PageTransition>
+                <SemanticSearch />
+              </PageTransition>
+            </Suspense>
+          </Layout>
+        } />
+        <Route path="/impact" element={
+          <Layout>
+            <Suspense fallback={<PageLoader />}>
+              <PageTransition>
+                <ImpactAnalysis />
+              </PageTransition>
+            </Suspense>
+          </Layout>
+        } />
+        <Route path="/onboard" element={
+          <Layout>
+            <Suspense fallback={<PageLoader />}>
+              <PageTransition>
+                <AIOnboarding />
+              </PageTransition>
+            </Suspense>
+          </Layout>
+        } />
+
+        {/* Catch-all redirect */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </AnimatePresence>
+  );
+};
+
+// ── App Entry Point ───────────────────────────────────────────────────────
 const App: React.FC = () => {
   return (
     <BrowserRouter>
-      <Suspense fallback={<div className="bg-void-900 min-h-screen flex items-center justify-center"><PageLoader /></div>}>
-        <Routes>
-          {/* Landing page - no layout shell */}
-          <Route path="/" element={<LandingPage />} />
-
-          {/* App pages - with layout */}
-          <Route path="/dashboard" element={
-            <Layout>
-              <Suspense fallback={<PageLoader />}>
-                <Dashboard />
-              </Suspense>
-            </Layout>
-          } />
-          <Route path="/graph" element={
-            <Layout>
-              <Suspense fallback={<PageLoader />}>
-                <GraphExplorer />
-              </Suspense>
-            </Layout>
-          } />
-          <Route path="/search" element={
-            <Layout>
-              <Suspense fallback={<PageLoader />}>
-                <SemanticSearch />
-              </Suspense>
-            </Layout>
-          } />
-          <Route path="/impact" element={
-            <Layout>
-              <Suspense fallback={<PageLoader />}>
-                <ImpactAnalysis />
-              </Suspense>
-            </Layout>
-          } />
-          <Route path="/onboard" element={
-            <Layout>
-              <Suspense fallback={<PageLoader />}>
-                <AIOnboarding />
-              </Suspense>
-            </Layout>
-          } />
-
-          {/* Catch-all redirect */}
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+      <Suspense fallback={<div className="bg-[#04050A] min-h-screen flex items-center justify-center"><PageLoader /></div>}>
+        <AnimatedRoutes />
       </Suspense>
     </BrowserRouter>
   );

@@ -1,0 +1,17 @@
+{
+  "contains": [
+    {"source": "models.py", "target": "User", "type": "class"},
+    {"source": "models.py", "target": "save", "type": "function"},
+    {"source": "main.py", "target": "process", "type": "function"},
+    {"source": "main.py", "target": "execute", "type": "function"}
+  ],
+  "imports": [
+    {"source": "main.py", "target": "models.py"}
+  ],
+  "calls": [
+    {"source": "process", "target": "models.py:save"},
+    {"source": "execute", "target": "models.py:save"}
+  ],
+  "inherits": [],
+  "unresolved_calls": []
+}

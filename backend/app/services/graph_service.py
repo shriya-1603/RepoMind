@@ -2,6 +2,7 @@
 
 import logging
 import uuid
+import os
 from typing import Any, Dict, List, Optional
 
 from app.graph.neo4j_client import Neo4jClient, get_neo4j_client
@@ -227,17 +228,81 @@ class GraphService:
             if file_id:
                 repo_file_rels.append({"source": repo_node_id, "target": file_id, "type": "REPOSITORY_CONTAINS_FILE"})
 
+        class_func_rels = []
         for func in funcs_list:
             file_id = file_node_ids.get(func.get("file", ""))
             func_id = func_node_ids.get(self._func_key(func))
             if file_id and func_id:
                 file_func_rels.append({"source": file_id, "target": func_id, "type": "FILE_CONTAINS_FUNCTION"})
+            
+            class_name = func.get("classname")
+            if class_name:
+                class_id = self._find_class_id(analysis_id, class_name, class_node_ids)
+                if class_id and func_id:
+                    class_func_rels.append({"source": class_id, "target": func_id, "type": "CLASS_CONTAINS_FUNCTION"})
 
         for cls in classes_list:
             file_id = file_node_ids.get(cls.get("file", ""))
             class_id = class_node_ids.get(self._class_key(cls))
             if file_id and class_id:
                 file_class_rels.append({"source": file_id, "target": class_id, "type": "FILE_CONTAINS_CLASS"})
+
+        # Resolve imports to files and build FILE_IMPORTS_FILE
+        file_imports_file_rels = []
+        module_to_file_id = {}
+        for file_info in files_list:
+            path = file_info["path"]
+            rel_path = file_info["rel_path"]
+            file_id = file_node_ids.get(path)
+            if not file_id:
+                continue
+            parts = rel_path.replace(".py", "").replace("\\", "/").split("/")
+            if len(parts) > 1 and parts[-1] == "__init__":
+                mod_name = ".".join(parts[:-1])
+                module_to_file_id[mod_name] = file_id
+                short_name = parts[-2]
+                module_to_file_id[short_name] = file_id
+            else:
+                mod_name = ".".join(parts)
+                module_to_file_id[mod_name] = file_id
+                short_name = parts[-1]
+                module_to_file_id[short_name] = file_id
+
+        for imp in imports_list:
+            file_id = file_node_ids.get(imp.get("file", ""))
+            if not file_id:
+                continue
+            module = imp.get("module", "")
+            if not module:
+                continue
+            
+            target_file_id = module_to_file_id.get(module)
+            # relative import resolution
+            if not target_file_id and module.startswith("."):
+                curr_file = imp.get("file", "")
+                curr_rel = next((f["rel_path"] for f in files_list if f["path"] == curr_file), "")
+                if curr_rel:
+                    curr_dir = os.path.dirname(curr_rel).replace("\\", "/")
+                    dots_count = len(module) - len(module.lstrip('.'))
+                    module_name = module.lstrip('.')
+                    dir_parts = curr_dir.split('/') if curr_dir else []
+                    if dots_count > 1 and len(dir_parts) >= (dots_count - 1):
+                        dir_parts = dir_parts[:-(dots_count - 1)]
+                    if module_name:
+                        dir_parts.append(module_name)
+                    resolved_rel = ".".join(dir_parts)
+                    target_file_id = module_to_file_id.get(resolved_rel)
+            
+            if target_file_id and file_id != target_file_id:
+                file_imports_file_rels.append({
+                    "source": file_id,
+                    "target": target_file_id,
+                    "type": "FILE_IMPORTS_FILE",
+                    "import_type": imp.get("type", "import"),
+                    "module": module,
+                    "resolved": "true",
+                    "resolution_method": "local_file"
+                })
 
         for imp in imports_list:
             file_id = file_node_ids.get(imp.get("file", ""))
@@ -255,28 +320,542 @@ class GraphService:
                 if child_id and base_id:
                     inheritance_rels.append({"source": child_id, "target": base_id, "type": "CLASS_INHERITS_CLASS"})
 
-        # FUNCTION_CALLS_FUNCTION relationships
-        name_to_ids: Dict[str, List[str]] = {}
-        for key, node_id in func_node_ids.items():
-            parts = key.split(":")
-            func_name = parts[-1] if parts else key
-            name_to_ids.setdefault(func_name, []).append(node_id)
+        # Build symbol table for files
+        symbol_tables = {}
+        for file_info in files_list:
+            path = file_info["path"]
+            symbol_tables[path] = {}
+            
+        # Add local functions and classes to symbol tables
+        for func in funcs_list:
+            fpath = func.get("file", "")
+            if fpath in symbol_tables:
+                func_id = func_node_ids.get(self._func_key(func))
+                if func_id:
+                    symbol_tables[fpath][func.get("name", "")] = func_id
+                    
+        for cls in classes_list:
+            cpath = cls.get("file", "")
+            if cpath in symbol_tables:
+                class_id = class_node_ids.get(self._class_key(cls))
+                if class_id:
+                    symbol_tables[cpath][cls.get("name", "")] = class_id
 
+        # Resolve imported symbols in symbol tables (iterate 3 times to handle package re-exports)
+        for _ in range(3):
+            for imp in imports_list:
+                file_path = imp.get("file", "")
+                if file_path not in symbol_tables:
+                    continue
+                
+                module = imp.get("module", "")
+                target_file_id = module_to_file_id.get(module)
+                if not target_file_id and module.startswith("."):
+                    curr_rel = next((f["rel_path"] for f in files_list if f["path"] == file_path), "")
+                    if curr_rel:
+                        curr_dir = os.path.dirname(curr_rel).replace("\\", "/")
+                        dots_count = len(module) - len(module.lstrip('.'))
+                        module_name = module.lstrip('.')
+                        dir_parts = curr_dir.split('/') if curr_dir else []
+                        if dots_count > 1 and len(dir_parts) >= (dots_count - 1):
+                            dir_parts = dir_parts[:-(dots_count - 1)]
+                        if module_name:
+                            dir_parts.append(module_name)
+                        resolved_rel = ".".join(dir_parts)
+                        target_file_id = module_to_file_id.get(resolved_rel)
+                
+                if target_file_id:
+                    target_path = next((f["path"] for f in files_list if file_node_ids.get(f["path"]) == target_file_id), None)
+                    if target_path and target_path in symbol_tables:
+                        names = imp.get("names", [])
+                        if not names:
+                            # For module-level imports, bind the module name itself
+                            symbol_tables[file_path][module] = target_file_id
+                        else:
+                            for name in names:
+                                if name in symbol_tables[target_path]:
+                                    symbol_tables[file_path][name] = symbol_tables[target_path][name]
+                                else:
+                                    # Map module name/alias to target_file_id
+                                    symbol_tables[file_path][name] = target_file_id
+
+        # Build and resolve Calls
+        BUILTINS = {"print", "len", "range", "str", "int", "dict", "list", "set", "tuple", "open", "dir", "type", "sum", "min", "max", "abs"}
+        
+        # Save processed diagnostics classification back to parsed_output for run_benchmark.py
+        parsed_output["resolved_calls_diagnostics"] = []
+
+        # Build class-level instance attribute type map
+        class_instance_types = {}  # class_name -> {attr_name: set(types)}
+        for func in funcs_list:
+            cls_name = func.get("classname")
+            if not cls_name:
+                continue
+            if cls_name not in class_instance_types:
+                class_instance_types[cls_name] = {}
+            for la in func.get("local_assignments", []):
+                name = la.get("name", "")
+                if name.startswith("self."):
+                    attr_name = name[5:]  # strip "self."
+                    var_type = la.get("type", "unknown")
+                    if var_type != "unknown":
+                        if attr_name not in class_instance_types[cls_name]:
+                            class_instance_types[cls_name][attr_name] = set()
+                        class_instance_types[cls_name][attr_name].add(var_type)
+
+        def get_class_attr_type(cls_name: str, attr_name: str) -> Optional[str]:
+            if cls_name in class_instance_types and attr_name in class_instance_types[cls_name]:
+                types = class_instance_types[cls_name][attr_name]
+                if len(types) == 1:
+                    return list(types)[0]
+                else:
+                    return None
+            bases = []
+            for inh in parsed_output.get("inheritance", []):
+                if inh.get("class") == cls_name:
+                    bases = inh.get("inherits_from", [])
+                    break
+            for base in bases:
+                t = get_class_attr_type(base, attr_name)
+                if t:
+                    return t
+            return None
+        def get_collection_item_type(type_str: str) -> Optional[str]:
+            if not type_str:
+                return None
+            if "[" in type_str and type_str.endswith("]"):
+                start = type_str.find("[")
+                inner = type_str[start+1:-1].strip()
+                if "|" in inner or "," in inner or "Union" in inner:
+                    return None
+                if inner in ("Any", "object", ""):
+                    return None
+                return inner
+            return None
         for call in parsed_output.get("calls", []):
             callee_name = call.get("name", "")
-            if not callee_name or callee_name not in name_to_ids:
-                continue
-            callee_ids = name_to_ids[callee_name]
             call_file = call.get("file", "")
+            call_type = call.get("type", "identifier")
+            receiver = call.get("receiver")
+            
+            # Find the caller's node ID (should be a function or file containing this call)
             caller_ids = [
                 nid
                 for key, nid in func_node_ids.items()
                 if call_file and call_file in key
             ]
-            for caller_id in caller_ids:
-                for callee_id in callee_ids:
-                    if caller_id != callee_id:
-                        call_rels.append({"source": caller_id, "target": callee_id, "type": "FUNCTION_CALLS_FUNCTION"})
+            if not caller_ids:
+                # Fallback to file ID
+                caller_ids = [file_node_ids[call_file]] if call_file in file_node_ids else []
+
+            # 1. Classify Builtins
+            if callee_name in BUILTINS and call_type == "identifier":
+                parsed_output["resolved_calls_diagnostics"].append({
+                    "name": callee_name, "source_file": call_file, "classification": "BUILTIN", "resolved": False
+                })
+                continue
+                
+            # 2. Try to resolve call
+            resolved_target_id = None
+            resolution_method = "unresolved"
+            confidence = "NONE"
+            classification = "UNRESOLVED"
+            
+            # Evidence provenance fields
+            ev_var = None
+            ev_type = None
+            ev_assign = None
+            ev_lookup = None
+
+            if call_type == "identifier":
+                # Shadowing Precedence: check if identifier is shadowed locally in function
+                is_shadowed = False
+                caller_func = None
+                closest_start = -1
+                for f in funcs_list:
+                    if f.get("file") == call_file:
+                        f_line = f.get("line", 0)
+                        if f_line <= call.get("line", 0) and f_line > closest_start:
+                            closest_start = f_line
+                            caller_func = f
+                if caller_func:
+                    local_vars = [la["name"] for la in caller_func.get("local_assignments", [])] + caller_func.get("params", [])
+                    if callee_name in local_vars:
+                        is_shadowed = True
+
+                if is_shadowed:
+                    resolved_target_id = None
+                    classification = "UNRESOLVED"
+                    confidence = "NONE"
+                    resolution_method = "unresolved"
+                elif call_file in symbol_tables and callee_name in symbol_tables[call_file]:
+                    resolved_target_id = symbol_tables[call_file][callee_name]
+                    if resolved_target_id.startswith("func:") or resolved_target_id.startswith("class:"):
+                        classification = "USER_DEFINED"
+                        resolution_method = "direct_import" if "import:" in resolved_target_id else "local_scope"
+                        confidence = "HIGH"
+                    else:
+                        classification = "IMPORTED_SYMBOL"
+                        resolution_method = "module_resolution"
+                        confidence = "HIGH"
+                    ev_lookup = callee_name
+            elif call_type == "attribute" and receiver:
+                # 1. OOP super() method resolution
+                if receiver in ("super", "super()"):
+                    caller_func = None
+                    closest_start = -1
+                    for f in funcs_list:
+                        if f.get("file") == call_file:
+                            f_line = f.get("line", 0)
+                            if f_line <= call.get("line", 0) and f_line > closest_start:
+                                closest_start = f_line
+                                caller_func = f
+                    if caller_func and caller_func.get("classname"):
+                        cls_name = caller_func.get("classname")
+                        bases = []
+                        for inh in parsed_output.get("inheritance", []):
+                            if inh.get("class") == cls_name:
+                                bases = inh.get("inherits_from", [])
+                                break
+                        for base in bases:
+                            base_path = None
+                            for c in classes_list:
+                                if c["name"] == base:
+                                    base_path = c.get("file")
+                                    break
+                            if base_path and base_path in symbol_tables:
+                                if callee_name in symbol_tables[base_path]:
+                                    resolved_target_id = symbol_tables[base_path][callee_name]
+                                    classification = "USER_DEFINED"
+                                    resolution_method = "inheritance_resolution"
+                                    confidence = "HIGH"
+                                    
+                                    ev_var = receiver
+                                    ev_type = base
+                                    ev_assign = f"{receiver}"
+                                    ev_lookup = f"{base}.{callee_name}"
+                                    break
+
+                # 2. Local variable/parameter/instance-attribute static type-inference
+                if not resolved_target_id:
+                    caller_func = None
+                    closest_start = -1
+                    for f in funcs_list:
+                        if f.get("file") == call_file:
+                            f_line = f.get("line", 0)
+                            if f_line <= call.get("line", 0) and f_line > closest_start:
+                                closest_start = f_line
+                                caller_func = f
+
+                    inferred_type = None
+                    provenance = None
+                    assignment_expr = None
+                    
+                    if caller_func:
+                        # Case A: Chained attribute lookup (e.g. self.service.client)
+                        if "." in receiver:
+                            parts = receiver.split(".")
+                            current_type = None
+                            
+                            # Initialize start of chain
+                            if parts[0] == "self" and caller_func.get("classname"):
+                                current_type = caller_func.get("classname")
+                            else:
+                                param_types = caller_func.get("param_types", {})
+                                if parts[0] in param_types:
+                                    current_type = param_types[parts[0]]
+                                else:
+                                    for la in caller_func.get("local_assignments", []):
+                                        if la.get("name") == parts[0]:
+                                            current_type = la.get("type")
+                                            break
+                                            
+                            # Step through attributes
+                            for part in parts[1:]:
+                                if current_type:
+                                    current_type = get_class_attr_type(current_type, part)
+                                else:
+                                    break
+                                    
+                            if current_type:
+                                inferred_type = current_type
+                                provenance = "chained_attributes"
+                                
+                        # Case B: Standard local/instance variable lookup
+                        else:
+                            # Try control-flow-aware type narrowing first
+                            call_line = call.get("line", 0)
+                            active_narrowing = None
+                            for tn in caller_func.get("type_narrowings", []):
+                                if tn.get("name") == receiver and tn.get("start_line", 0) <= call_line <= tn.get("end_line", 0):
+                                    active_narrowing = tn
+                                    break
+                            
+                            if active_narrowing:
+                                if active_narrowing.get("source") == "isinstance_narrowing":
+                                    inferred_type = active_narrowing.get("type")
+                                    provenance = "isinstance_narrowing"
+                                    assignment_expr = f"isinstance({receiver}, {inferred_type})"
+                                elif active_narrowing.get("source") == "with_statement_binding":
+                                    class_name = active_narrowing.get("type")
+                                    if class_name and class_name != "unknown":
+                                        class_id = symbol_tables[call_file].get(class_name) if call_file in symbol_tables else None
+                                        cls_path = None
+                                        if class_id and class_id.startswith("class:"):
+                                            for c in classes_list:
+                                                if class_node_ids.get(self._class_key(c)) == class_id:
+                                                    cls_path = c.get("file")
+                                                    break
+                                        has_enter = False
+                                        enter_return_type = None
+                                        if cls_path:
+                                            for f in funcs_list:
+                                                if f.get("file") == cls_path and f.get("classname") == class_name and f.get("name") == "__enter__":
+                                                    has_enter = True
+                                                    if f.get("return_type_annotated"):
+                                                        enter_return_type = f.get("return_type")
+                                                    break
+                                        if has_enter:
+                                            if enter_return_type:
+                                                inferred_type = enter_return_type
+                                                provenance = "with_statement_binding"
+                                                assignment_expr = f"with {class_name}() as {receiver}"
+                                            else:
+                                                inferred_type = None
+                                                provenance = None
+                                        else:
+                                            inferred_type = class_name
+                                            provenance = "with_statement_binding"
+                                            assignment_expr = f"with {class_name}() as {receiver}"
+                                    else:
+                                        inferred_type = None
+                                        provenance = None
+                            
+                            if not inferred_type:
+                                param_types = caller_func.get("param_types", {})
+                                if receiver in param_types:
+                                    inferred_type = param_types[receiver]
+                                    provenance = "typed_parameter"
+                                else:
+                                    for la in caller_func.get("local_assignments", []):
+                                        if la.get("name") == receiver:
+                                            inferred_type = la.get("type")
+                                            provenance = la.get("source", "constructor_call")
+                                            if provenance == "constructor_call":
+                                                assignment_expr = f"{receiver} = {inferred_type}()"
+                                            break
+                                
+                                # Case B.2: For loop iterator type resolution (PHASE 8)
+                                if provenance == "for_loop_iterator":
+                                    collection_name = inferred_type  # e.g. "users"
+                                    collection_type = None
+                                    if collection_name in param_types:
+                                        collection_type = param_types[collection_name]
+                                    else:
+                                        for la in caller_func.get("local_assignments", []):
+                                            if la.get("name") == collection_name:
+                                                collection_type = la.get("type")
+                                                break
+                                    item_type = get_collection_item_type(collection_type)
+                                    if item_type:
+                                        inferred_type = item_type
+                                        provenance = "collection_element_type"
+                                        assignment_expr = f"for {receiver} in {collection_name}"
+                                    else:
+                                        inferred_type = None
+                                        provenance = None
+                                # If not found locally, look up in self attributes (if in method)
+                                if not inferred_type and caller_func.get("classname"):
+                                    cls_name = caller_func.get("classname")
+                                    t = get_class_attr_type(cls_name, receiver)
+                                    if t:
+                                        inferred_type = t
+                                        provenance = "instance_attribute_type"
+                                        assignment_expr = f"self.{receiver} = {t}()"
+
+                    # Case C: Return type call-site propagation
+                    if inferred_type and call_file in symbol_tables:
+                        if "." not in inferred_type:
+                            symbol_id = symbol_tables[call_file].get(inferred_type)
+                            if symbol_id and symbol_id.startswith("func:"):
+                                target_func = None
+                                for f in funcs_list:
+                                    if func_node_ids.get(self._func_key(f)) == symbol_id:
+                                        target_func = f
+                                        break
+                                if target_func and target_func.get("return_type"):
+                                    inferred_type = target_func.get("return_type")
+                                    provenance = "annotated_return_type"
+                                    assignment_expr = f"{receiver} = {target_func.get('name')}()"
+                        else:
+                            parts = inferred_type.split(".")
+                            if len(parts) == 2:
+                                class_name, method_name = parts
+                                symbol_id = symbol_tables[call_file].get(class_name)
+                                if symbol_id and symbol_id.startswith("class:"):
+                                    target_func = None
+                                    for f in funcs_list:
+                                        if f.get("classname") == class_name and f.get("name") == method_name:
+                                            target_func = f
+                                            break
+                                    if target_func and target_func.get("return_type"):
+                                        inferred_type = target_func.get("return_type")
+                                        provenance = "factory_return_type"
+                                        assignment_expr = f"{receiver} = {class_name}.{method_name}()"
+                                    else:
+                                        inferred_type = None
+                                        provenance = None
+
+                    if inferred_type and call_file in symbol_tables and inferred_type in symbol_tables[call_file]:
+                        rec_id = symbol_tables[call_file][inferred_type]
+                        rec_path = None
+                        for c in classes_list:
+                            if class_node_ids.get(self._class_key(c)) == rec_id:
+                                rec_path = c.get("file")
+                                break
+                        
+                        if rec_path and rec_path in symbol_tables:
+                            class_def = next((c for c in classes_list if c["name"] == inferred_type and c.get("file") == rec_path), None)
+                            if class_def:
+                                found_method_id = None
+                                if callee_name in class_def.get("methods", []):
+                                    for f in funcs_list:
+                                        if f.get("file") == rec_path and f.get("name") == callee_name and f.get("classname") == inferred_type:
+                                            found_method_id = func_node_ids.get(self._func_key(f))
+                                            break
+                                
+                                if not found_method_id:
+                                    # Inheritance chain MRO search
+                                    bases = []
+                                    for inh in parsed_output.get("inheritance", []):
+                                        if inh.get("class") == inferred_type:
+                                            bases = inh.get("inherits_from", [])
+                                            break
+                                    for base in bases:
+                                        base_path = None
+                                        for c in classes_list:
+                                            if c["name"] == base:
+                                                base_path = c.get("file")
+                                                break
+                                        if base_path and base_path in symbol_tables:
+                                            base_class_def = next((c for c in classes_list if c["name"] == base and c.get("file") == base_path), None)
+                                            if base_class_def and callee_name in base_class_def.get("methods", []):
+                                                for f in funcs_list:
+                                                    if f.get("file") == base_path and f.get("name") == callee_name and f.get("classname") == base:
+                                                        found_method_id = func_node_ids.get(self._func_key(f))
+                                                        break
+                                                if found_method_id:
+                                                    break
+                                
+                                if found_method_id:
+                                    resolved_target_id = found_method_id
+                                    classification = "USER_DEFINED"
+                                    resolution_method = f"type_inference_{provenance}" if not provenance.startswith("type_inference_") else provenance
+                                    confidence = "HIGH"
+                                    
+                                    ev_var = receiver
+                                    ev_type = inferred_type
+                                    if assignment_expr:
+                                        ev_assign = assignment_expr
+                                    ev_lookup = f"{inferred_type}.{callee_name}"
+
+                # Class or Module attribute call resolution
+                if not resolved_target_id and call_file in symbol_tables and receiver in symbol_tables[call_file]:
+                    rec_id = symbol_tables[call_file][receiver]
+                    # Case 1: Class static/class method call (e.g. ClientFactory.create())
+                    if rec_id.startswith("class:"):
+                        rec_path = None
+                        for c in classes_list:
+                            key = self._class_key(c)
+                            node_id = class_node_ids.get(key)
+                            if node_id == rec_id:
+                                rec_path = c.get("file")
+                                break
+                        if rec_path and rec_path in symbol_tables:
+                            class_def = next((c for c in classes_list if c["name"] == receiver and c.get("file") == rec_path), None)
+                            if class_def and callee_name in class_def.get("methods", []):
+                                for f in funcs_list:
+                                    if f.get("file") == rec_path and f.get("name") == callee_name and f.get("classname") == receiver:
+                                        resolved_target_id = func_node_ids.get(self._func_key(f))
+                                        classification = "USER_DEFINED"
+                                        resolution_method = "class_method_call"
+                                        confidence = "HIGH"
+                                        
+                                        ev_var = receiver
+                                        ev_type = receiver
+                                        ev_assign = f"{receiver}.{callee_name}()"
+                                        ev_lookup = f"{receiver}.{callee_name}"
+                                        break
+                    # Case 2: Module-level function call (e.g. math_utils.quad())
+                    else:
+                        rec_path = next((f["path"] for f in files_list if file_node_ids.get(f["path"]) == rec_id), None)
+                        if rec_path and rec_path in symbol_tables:
+                            if callee_name in symbol_tables[rec_path]:
+                                resolved_target_id = symbol_tables[rec_path][callee_name]
+                                classification = "USER_DEFINED"
+                                resolution_method = "module_resolution"
+                                confidence = "HIGH"
+                                
+                                ev_var = receiver
+                                ev_lookup = f"{receiver}.{callee_name}"
+                
+                if not resolved_target_id:
+                    classification = "UNRESOLVED_MEMBER_CALL"
+                    resolution_method = "unresolved"
+                    confidence = "NONE"
+
+            # Log resolution
+            if resolved_target_id:
+                parts = resolved_target_id.split(":")
+                target_file_path = parts[2] if len(parts) >= 3 else ""
+                target_rel = os.path.relpath(target_file_path, repo_name).replace("\\", "/") if target_file_path else ""
+
+                if resolved_target_id.startswith("func:") or resolved_target_id.startswith("class:"):
+                    for caller_id in caller_ids:
+                        if caller_id != resolved_target_id:
+                            edge_properties = {
+                                "source": caller_id,
+                                "target": resolved_target_id,
+                                "type": "FUNCTION_CALLS_FUNCTION",
+                                "confidence": confidence,
+                                "resolution_method": resolution_method
+                            }
+                            if ev_var:
+                                edge_properties["evidence_variable"] = ev_var
+                            if ev_type:
+                                edge_properties["evidence_type"] = ev_type
+                            if ev_assign:
+                                edge_properties["evidence_assignment"] = ev_assign
+                            if ev_lookup:
+                                edge_properties["evidence_lookup"] = ev_lookup
+                            call_rels.append(edge_properties)
+                
+                diag_item = {
+                    "name": callee_name,
+                    "source_file": call_file,
+                    "resolved": True,
+                    "classification": classification,
+                    "target_id": resolved_target_id,
+                    "target_file": target_rel,
+                    "resolution_method": resolution_method
+                }
+                if ev_var:
+                    diag_item["evidence_variable"] = ev_var
+                if ev_type:
+                    diag_item["evidence_type"] = ev_type
+                if ev_assign:
+                    diag_item["evidence_assignment"] = ev_assign
+                if ev_lookup:
+                    diag_item["evidence_lookup"] = ev_lookup
+                parsed_output["resolved_calls_diagnostics"].append(diag_item)
+            else:
+                parsed_output["resolved_calls_diagnostics"].append({
+                    "name": callee_name,
+                    "source_file": call_file,
+                    "resolved": False,
+                    "classification": classification,
+                    "resolution_method": "unresolved"
+                })
 
         # Diagnostics & Deduplication
         all_rels = (
@@ -285,7 +864,9 @@ class GraphService:
             file_class_rels +
             file_import_rels +
             inheritance_rels +
-            call_rels
+            call_rels +
+            class_func_rels +
+            file_imports_file_rels
         )
         total_relationships_count = len(all_rels)
 
@@ -304,6 +885,8 @@ class GraphService:
         file_import_rels_dedup = []
         inheritance_rels_dedup = []
         call_rels_dedup = []
+        class_func_rels_dedup = []
+        file_imports_file_rels_dedup = []
 
         for r in unique_rels_dict.values():
             rtype = r["type"]
@@ -319,6 +902,10 @@ class GraphService:
                 inheritance_rels_dedup.append(r)
             elif rtype == "FUNCTION_CALLS_FUNCTION":
                 call_rels_dedup.append(r)
+            elif rtype == "CLASS_CONTAINS_FUNCTION":
+                class_func_rels_dedup.append(r)
+            elif rtype == "FILE_IMPORTS_FILE":
+                file_imports_file_rels_dedup.append(r)
 
         # Output exact diagnostics format
         logger.info(
@@ -345,6 +932,8 @@ class GraphService:
         self._batch_merge_relationships(analysis_id, "File", "Import", "FILE_IMPORTS_MODULE", file_import_rels_dedup)
         self._batch_merge_relationships(analysis_id, "Class", "Class", "CLASS_INHERITS_CLASS", inheritance_rels_dedup)
         self._batch_merge_relationships(analysis_id, "Function", "Function", "FUNCTION_CALLS_FUNCTION", call_rels_dedup)
+        self._batch_merge_relationships(analysis_id, "Class", "Function", "CLASS_CONTAINS_FUNCTION", class_func_rels_dedup)
+        self._batch_merge_relationships(analysis_id, "File", "File", "FILE_IMPORTS_FILE", file_imports_file_rels_dedup)
 
         logger.info("Graph stored for analysis_id=%s", analysis_id)
 
@@ -977,7 +1566,8 @@ class GraphService:
         RETURN
             a.id          AS source,
             b.id          AS target,
-            type(r)       AS rel_type
+            type(r)       AS rel_type,
+            properties(r) AS properties
         """
         raw = self._client.run_query(query, {"analysis_id": analysis_id})
         edges = []
@@ -992,6 +1582,7 @@ class GraphService:
                     "source": source,
                     "target": target,
                     "type": rel_type,
+                    "properties": row.get("properties", {}),
                 }
             )
         return edges

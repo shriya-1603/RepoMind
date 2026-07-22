@@ -4,40 +4,42 @@ import {
   ReactFlow,
   ReactFlowProvider,
   Controls,
-  MiniMap,
   Background,
   BackgroundVariant,
   useNodesState,
   useEdgesState,
+  useReactFlow,
 } from '@xyflow/react';
 import type { Node, Edge, NodeMouseHandler } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import {
-  Search, X, GitBranch, FileCode, Upload, Download,
-  ChevronLeft, ChevronRight, Layers, AlertTriangle, Binary, Loader2, Code2,
-  Database, RefreshCw, Wifi, WifiOff, Map, HelpCircle
+  Search, GitBranch,
+  ChevronLeft, ChevronRight, Binary, Loader2,
+  Database, RefreshCw, WifiOff, Map as MapIcon, Layers,
 } from 'lucide-react';
 
 import CustomNode from '../components/CustomNode';
 import CustomEdge from '../components/CustomEdge';
 import RealGraphNodeComponent, { realNodeTypeConfig } from '../components/RealGraphNode';
 import SubsystemNode from '../components/SubsystemNode';
-import NodeDetailsPanel from '../components/NodeDetailsPanel';
+import NodeDetailsPanel, { RelationshipDetailsPanel } from '../components/NodeDetailsPanel';
 import SubsystemDetailsPanel from '../components/SubsystemDetailsPanel';
 import { OnboardingOverlay } from '../components/OnboardingOverlay';
 import { ExplorerHeader } from '../components/ExplorerHeader';
+import type { NavPathItem } from '../components/ExplorerHeader';
 import { SystemMinimap } from '../components/SystemMinimap';
 
 import { mockFileNodes, mockDependencyEdges, mockASTData } from '../data/mockRepositoryData';
 import type { FileNode, ASTNode } from '../data/mockRepositoryData';
 import { useRealGraphData } from '../hooks/useRealGraphData';
-import type { RealGraphNode, RealGraphEdge } from '../services/repoApi';
+import type { RealGraphNode, RealGraphEdge, RepositoryActivityData, RecentCommit } from '../services/repoApi';
+import { getRepositoryActivity } from '../services/repoApi';
 import { useRepo } from '../contexts/RepoContext';
 
 import { useExplorerState } from '../hooks/useExplorerState';
-import { useExplorerLayout, PositionedNode, Subsystem } from '../hooks/useExplorerLayout';
-import { useSpotlightMode } from '../hooks/useSpotlightMode';
+import { useExplorerLayout } from '../hooks/useExplorerLayout';
 import { useExplorerCamera } from '../hooks/useExplorerCamera';
+import { ExplorerContext } from '../contexts/ExplorerContext';
 
 // ── React Flow node/edge type registrations ───────────────────────────────────
 const nodeTypes = {
@@ -47,184 +49,6 @@ const nodeTypes = {
 };
 const edgeTypes = { customEdge: CustomEdge };
 
-// ── Layout helpers ────────────────────────────────────────────────────────────
-function deterministicPosition(id: string, index: number, total: number): { x: number; y: number } {
-  let hash = 0;
-  for (let i = 0; i < id.length; i++) {
-    hash = (hash << 5) - hash + id.charCodeAt(i);
-    hash |= 0;
-  }
-  const angle = (index / Math.max(total, 1)) * Math.PI * 2 + (hash % 100) * 0.02;
-  const radius = 250 + Math.abs(hash % 180);
-  return {
-    x: Math.cos(angle) * radius + 500,
-    y: Math.sin(angle) * radius + 350,
-  };
-}
-
-function buildRealFlowNodes(rawNodes: RealGraphNode[]): Node[] {
-  return rawNodes.map((n, idx) => ({
-    id: n.id,
-    type: 'realNode',
-    position: deterministicPosition(n.id, idx, rawNodes.length),
-    data: {
-      label: n.label,
-      type: n.type,
-      metadata: n.metadata,
-    },
-  }));
-}
-
-function buildRealFlowEdges(rawEdges: RealGraphEdge[]): Edge[] {
-  return rawEdges.map(e => ({
-    id: e.id,
-    source: e.source,
-    target: e.target,
-    type: 'customEdge',
-    data: { label: e.type },
-    animated: false,
-  }));
-}
-
-const MOCK_POSITIONS: Record<string, { x: number; y: number }> = {
-  'node-1':  { x: 400, y: 300 },
-  'node-2':  { x: 100, y: 150 },
-  'node-3':  { x: 700, y: 150 },
-  'node-4':  { x: 100, y: 450 },
-  'node-5':  { x: 700, y: 420 },
-  'node-6':  { x: 400, y: 550 },
-  'node-7':  { x: 400, y: 700 },
-  'node-8':  { x: 100, y: 700 },
-  'node-9':  { x: -150, y: 450 },
-  'node-10': { x: 950, y: 300 },
-};
-
-const buildMockFlowNodes = (): Node[] =>
-  mockFileNodes.map(node => ({
-    id: node.id,
-    type: 'customNode',
-    position: MOCK_POSITIONS[node.id] ?? { x: Math.random() * 600, y: Math.random() * 500 },
-    data: {
-      label: node.name,
-      type: node.type,
-      linesOfCode: node.linesOfCode,
-      importCount: node.importCount,
-      exportCount: node.exportCount,
-      complexity: node.complexity,
-    },
-  }));
-
-const buildMockFlowEdges = (): Edge[] =>
-  mockDependencyEdges.map(e => ({
-    id: e.id,
-    source: e.source,
-    target: e.target,
-    type: 'customEdge',
-    data: { label: e.symbols.join(', ') },
-    animated: false,
-  }));
-
-// ── Pure function to convert layout metadata into React Flow elements ──────────
-function buildReactFlowGraph(
-  viewMode: 'system' | 'graph',
-  layoutNodes: PositionedNode[],
-  subsystems: Subsystem[],
-  rawNodes: RealGraphNode[],
-  rawEdges: RealGraphEdge[],
-  expandedSubsystemId: string | null,
-  isRealGraph: boolean,
-  expandSubsystemHandler: (id: string) => void,
-  collapseSubsystemHandler: () => void,
-  zoomToNodeHandler: (x: number, y: number, zoomLevel: number) => void,
-  resetCameraHandler: () => void
-): { nodes: Node[]; edges: Edge[] } {
-  if (viewMode === 'graph') {
-    const nodes = isRealGraph ? buildRealFlowNodes(rawNodes) : buildMockFlowNodes();
-    const edges = isRealGraph ? buildRealFlowEdges(rawEdges) : buildMockFlowEdges();
-    return { nodes, edges };
-  }
-
-  const nodes = layoutNodes.map(n => {
-    const isSubsystem = n.id.startsWith('subsystem:');
-    if (isSubsystem) {
-      const subId = n.id.replace('subsystem:', '');
-      const subsystem = subsystems.find(s => s.id === subId);
-      return {
-        id: n.id,
-        type: 'subsystemNode',
-        position: { x: n.x, y: n.y },
-        width: n.width,
-        height: n.height,
-        data: {
-          id: subId,
-          label: subsystem?.name.replace(' Area', '') ?? subId,
-          description: subsystem?.description ?? '',
-          filesCount: subsystem?.fileIds.length ?? 0,
-          functionsCount: subsystem?.metrics.functions ?? 0,
-          classesCount: subsystem?.metrics.classes ?? 0,
-          entryFile: subsystem?.entryFiles?.[0]?.split('/')?.pop() ?? '',
-          risk: subsystem?.risk ?? 'low',
-          isExpanded: expandedSubsystemId === subId,
-          onExpandToggle: (id: string) => {
-            if (expandedSubsystemId === id) {
-              collapseSubsystemHandler();
-              resetCameraHandler();
-            } else {
-              expandSubsystemHandler(id);
-              zoomToNodeHandler(n.x + n.width / 2, n.y + n.height / 2, 0.85);
-            }
-          }
-        }
-      };
-    } else {
-      const fileNode = rawNodes.find(r => r.id === n.id);
-      return {
-        id: n.id,
-        type: 'realNode',
-        position: { x: n.x, y: n.y },
-        data: {
-          label: fileNode?.label ?? n.id.split('/').pop() ?? n.id,
-          type: fileNode?.type ?? 'file',
-          metadata: fileNode?.metadata ?? {}
-        }
-      };
-    }
-  });
-
-  const edgesList: Edge[] = [];
-  subsystems.forEach(sub => {
-    sub.dependencies.forEach(depId => {
-      edgesList.push({
-        id: `subsystem-edge:${sub.id}-${depId}`,
-        source: `subsystem:${sub.id}`,
-        target: `subsystem:${depId}`,
-        type: 'customEdge',
-        data: { label: 'depends' }
-      });
-    });
-  });
-
-  if (expandedSubsystemId) {
-    const activeSub = subsystems.find(s => s.id === expandedSubsystemId);
-    if (activeSub) {
-      rawEdges.forEach(e => {
-        const isSrcInSub = activeSub.fileIds.includes(e.source);
-        const isTgtInSub = activeSub.fileIds.includes(e.target);
-        if (isSrcInSub && isTgtInSub) {
-          edgesList.push({
-            id: e.id,
-            source: e.source,
-            target: e.target,
-            type: 'customEdge',
-            data: { label: e.type }
-          });
-        }
-      });
-    }
-  }
-
-  return { nodes, edges: edgesList };
-}
 
 // ── AST Tree View (unchanged) ─────────────────────────────────────────────────
 const ASTTreeView: React.FC<{
@@ -417,8 +241,8 @@ const CodeInspector: React.FC<{ node: FileNode; onClose: () => void }> = ({ node
                   {node.blastRadius.map(id => {
                     const dep = mockFileNodes.find(n => n.id === id);
                     return dep ? (
-                      <div key={id} className="text-xs font-mono text-rose-400/80 flex items-center gap-2">
-                        <div className="w-1 h-1 rounded-full bg-rose-500 animate-pulse" />
+                      <div key={id} className="text-xs font-mono text-rose-450/80 flex items-center gap-2">
+                        <div className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
                         {dep.name}
                       </div>
                     ) : null;
@@ -518,7 +342,7 @@ const GraphEmptyState: React.FC = () => (
       animate={{ opacity: 1, y: 0 }}
       className="glass rounded-2xl px-8 py-7 border border-white/8 flex flex-col items-center gap-3 shadow-3xl text-center max-w-xs bg-slate-950/85"
     >
-      <Database size={28} className="text-slate-600" />
+      <Database size={28} className="text-slate-655" />
       <div>
         <div className="text-sm font-semibold text-slate-300 font-[Syne]">No Graph Data</div>
         <div className="text-[11px] text-slate-500 mt-1 leading-relaxed">
@@ -559,7 +383,14 @@ const GraphErrorState: React.FC<{ message: string; onRetry?: () => void }> = ({ 
 const GraphExplorerInner: React.FC = () => {
   const { analysisId, repoName } = useRepo();
   const { nodes: rawNodes, edges: rawEdges, source, loading, error, warning, refetch } = useRealGraphData(analysisId);
-  const [dismissedWarning, setDismissedWarning] = useState(false);
+
+  // ── Graph data validation diagnostic ────────────────────────────────────────
+  useEffect(() => {
+    if (rawNodes.length === 0) return;
+    const typeCounts: Record<string, number> = {};
+    rawNodes.forEach(n => { typeCounts[n.type] = (typeCounts[n.type] ?? 0) + 1; });
+    console.info('[RepoMind] Graph loaded:', rawNodes.length, 'nodes', rawEdges.length, 'edges | types:', typeCounts);
+  }, [rawNodes, rawEdges]);
 
   // View Mode: 'system' (Subsystem Map) or 'graph' (Flat Dependency Graph)
   const [viewMode, setViewMode] = useState<'system' | 'graph'>('system');
@@ -567,6 +398,7 @@ const GraphExplorerInner: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState<string>('all');
   const [, setHoveredEdge] = useState<Edge | null>(null);
+  const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
 
   // 1. Exploration hooks state
   const {
@@ -577,60 +409,730 @@ const GraphExplorerInner: React.FC = () => {
     collapseSubsystem,
     selectSubsystem,
     selectFile,
-    clearSelection
+    clearSelection: rawClearSelection
   } = useExplorerState();
 
-  const isRealGraph = rawNodes.length > 0;
+  const clearSelection = useCallback(() => {
+    rawClearSelection();
+    setSelectedEdge(null);
+  }, [rawClearSelection]);
 
+  const isRealGraph = rawNodes.length > 0;
+  // Progressive navigation trail state
+  const [navPath, setNavPath] = useState<NavPathItem[]>([
+    { id: 'system', label: 'Repository', type: 'system' }
+  ]);
+
+  // Selected entity state (class or function drill-down)
+  const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null);
+  const [selectedEdge, setSelectedEdge] = useState<Edge | null>(null);
+
+  // Progressive Disclosure: show sibling functions toggle for Level 3
+  const [showSiblings, setShowSiblings] = useState(false);
+
+  // Detail panel slide collapse state
+  const [isDetailsCollapsed, setIsDetailsCollapsed] = useState(false);
+  const [isDetailsExpanded, setIsDetailsExpanded] = useState(false);
+
+  // Git activity database cache
+  const [gitActivity, setGitActivity] = useState<RepositoryActivityData | null>(null);
+  
+  // Multi-stop path search
+  const [searchStops, setSearchStops] = useState<string[]>(['']);
+  const [searchMode, setSearchMode] = useState<'single' | 'path'>('single');
+
+  useEffect(() => {
+    if (!analysisId) return;
+    getRepositoryActivity(analysisId)
+      .then(data => setGitActivity(data))
+      .catch(err => console.error("Failed to load repo activity", err));
+  }, [analysisId]);
+
+  // 3. Progressive Codebase Exploration Projection Layer
+  const projectedGraph = useMemo(() => {
+    const current = navPath[navPath.length - 1];
+
+    // Helper: add a node+edge pair safely
+    const addNode = (
+      map: globalThis.Map<string, Node>,
+      id: string, label: string, type: string,
+      x: number, y: number, metadata: Record<string, unknown> = {},
+      extra: Record<string, unknown> = {}
+    ) => {
+      if (map.has(id)) return;
+      map.set(id, { id, type: 'realNode', position: { x, y }, data: { label, type, metadata, ...extra } });
+    };
+
+    const addEdge = (
+      map: globalThis.Map<string, Edge>,
+      id: string, source: string, target: string,
+      edgeType: string, label: string,
+      properties: Record<string, any> = {}
+    ) => {
+      if (map.has(id)) return;
+      map.set(id, { id, source, target, type: 'customEdge', data: { type: edgeType, label, properties } });
+    };
+
+    // Helper to match paths (absolute vs relative, backslash vs slash)
+    const isPathMatch = (a: string, b: string) => {
+      if (!a || !b) return false;
+      if (a === b) return true;
+      const clean = (p: string) => p.replace(/\\/g, '/').replace(/^\.\//, '');
+      const ca = clean(a);
+      const cb = clean(b);
+      return ca === cb || ca.endsWith('/' + cb) || cb.endsWith('/' + ca);
+    };
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // LEVEL 1 — System / Repository Overview
+    // Show top 15 files by centrality, with file→file import edges between them
+    // ──────────────────────────────────────────────────────────────────────────
+    // ──────────────────────────────────────────────────────────────────────────
+    // LEVEL 0 — Multi-Node Stop-Based Search & Path Finder
+    // ──────────────────────────────────────────────────────────────────────────
+    if (current && current.type === 'multi-search') {
+      const nodesMap = new globalThis.Map<string, Node>();
+      const edgesMap = new globalThis.Map<string, Edge>();
+
+      // Find matching nodes for each search query
+      const matched = searchStops
+        .map(q => q.trim().toLowerCase())
+        .filter(Boolean)
+        .map(q => rawNodes.find(n => n.label.toLowerCase().includes(q)))
+        .filter((n): n is RealGraphNode => !!n);
+
+      if (matched.length === 0) {
+        return { nodes: [], edges: [] };
+      }
+
+      const mainNode = matched[0];
+      const otherStops = matched.slice(1);
+
+      // Build function/class to file lookup maps
+      const fnToFile = new globalThis.Map<string, string>();
+      const classToFile = new globalThis.Map<string, string>();
+
+      rawEdges.forEach(e => {
+        if (e.type === 'FILE_CONTAINS_FUNCTION') fnToFile.set(e.target, e.source);
+        if (e.type === 'FILE_CONTAINS_CLASS') classToFile.set(e.target, e.source);
+      });
+
+      rawNodes.forEach(n => {
+        if (n.type === 'function' || n.type === 'class') {
+          const fp = (n.metadata.file_path as string) ?? (n.metadata.path as string) ?? '';
+          if (fp) {
+            const matchedFile = rawNodes.find(f => f.type === 'file' && (isPathMatch(f.id, fp) || isPathMatch((f.metadata.path as string) ?? '', fp)));
+            if (matchedFile) {
+              if (n.type === 'function') fnToFile.set(n.id, matchedFile.id);
+              if (n.type === 'class') classToFile.set(n.id, matchedFile.id);
+            }
+          }
+        }
+      });
+
+      // Build unified adjacency map (handles direct and projected file-to-file import connections)
+      const unifiedAdjacency = new globalThis.Map<string, Set<string>>();
+      const edgeMeta = new globalThis.Map<string, { type: string; label: string }>();
+
+      const addAdjacency = (src: string, tgt: string, type: string, label: string) => {
+        if (!unifiedAdjacency.has(src)) unifiedAdjacency.set(src, new Set());
+        unifiedAdjacency.get(src)!.add(tgt);
+        edgeMeta.set(`${src}|${tgt}`, { type, label });
+      };
+
+      rawEdges.forEach(e => {
+        // Direct connections
+        addAdjacency(e.source, e.target, e.type, e.type.toLowerCase().replace(/_/g, ' '));
+
+        // Projected File-to-File imports
+        if (e.type === 'FUNCTION_CALLS_FUNCTION') {
+          const srcFile = fnToFile.get(e.source);
+          const tgtFile = fnToFile.get(e.target);
+          if (srcFile && tgtFile && srcFile !== tgtFile) {
+            addAdjacency(srcFile, tgtFile, 'IMPORTS', 'imports');
+          }
+        }
+        if (e.type === 'INHERITS_FROM') {
+          const srcFile = classToFile.get(e.source);
+          const tgtFile = classToFile.get(e.target);
+          if (srcFile && tgtFile && srcFile !== tgtFile) {
+            addAdjacency(srcFile, tgtFile, 'IMPORTS', 'imports');
+          }
+        }
+      });
+
+      const cx = 550, cy = 400;
+      
+      // 1. Place Main Node in Center
+      addNode(nodesMap, mainNode.id, mainNode.label, mainNode.type, cx, cy, mainNode.metadata, { isFocused: true });
+
+      // 2. Position other searched stops in a circle around center
+      const rInner = 260;
+      otherStops.forEach((n, idx) => {
+        const angle = (idx / Math.max(otherStops.length, 1)) * Math.PI * 2 - Math.PI / 2;
+        addNode(nodesMap, n.id, n.label, n.type, Math.cos(angle) * rInner + cx, Math.sin(angle) * rInner + cy, n.metadata);
+      });
+
+      // 3. Trace connections strictly between the matched searched stops (no duplicates)
+      const pathEdges = new Set<string>();
+      const seenPairs = new Set<string>();
+
+      matched.forEach(n1 => {
+        matched.forEach(n2 => {
+          if (n1.id === n2.id) return;
+          
+          const pairKey = [n1.id, n2.id].sort().join('↔');
+          if (seenPairs.has(pairKey)) return;
+
+          // Check n1 -> n2 connection
+          if (unifiedAdjacency.get(n1.id)?.has(n2.id)) {
+            pathEdges.add(`${n1.id}|${n2.id}`);
+            seenPairs.add(pairKey);
+          }
+        });
+      });
+
+      // Add connections / edges
+      pathEdges.forEach(edgeKey => {
+        const [src, tgt] = edgeKey.split('|');
+        const meta = edgeMeta.get(edgeKey) ?? { type: 'IMPORTS', label: 'imports' };
+        addEdge(edgesMap, `multi:${src}→${tgt}`, src, tgt, meta.type, meta.label);
+      });
+
+      return { nodes: Array.from(nodesMap.values()), edges: Array.from(edgesMap.values()) };
+    }
+
+    if (current.type === 'system') {
+      const fileNodes = rawNodes.filter(n => n.type === 'file');
+      const candidateNodes = fileNodes.length > 0 ? fileNodes : rawNodes;
+
+      // Build function/class to file lookup maps
+      const fnToFile = new globalThis.Map<string, string>();
+      const classToFile = new globalThis.Map<string, string>();
+
+      rawEdges.forEach(e => {
+        if (e.type === 'FILE_CONTAINS_FUNCTION') fnToFile.set(e.target, e.source);
+        if (e.type === 'FILE_CONTAINS_CLASS') classToFile.set(e.target, e.source);
+      });
+
+      rawNodes.forEach(n => {
+        if (n.type === 'function' || n.type === 'class') {
+          const fp = (n.metadata.file_path as string) ?? (n.metadata.path as string) ?? '';
+          if (fp) {
+            const matchedFile = candidateNodes.find(f => isPathMatch(f.id, fp) || isPathMatch((f.metadata.path as string) ?? '', fp));
+            if (matchedFile) {
+              if (n.type === 'function') fnToFile.set(n.id, matchedFile.id);
+              if (n.type === 'class') classToFile.set(n.id, matchedFile.id);
+            }
+          }
+        }
+      });
+
+      // Calculate exploration priority degree metrics per file
+      const dependencyOutDegree = new globalThis.Map<string, Set<string>>();
+      const dependencyInDegree = new globalThis.Map<string, Set<string>>();
+      const callOutDegree = new globalThis.Map<string, number>();
+      const callInDegree = new globalThis.Map<string, number>();
+      const classCount = new globalThis.Map<string, number>();
+      const functionCount = new globalThis.Map<string, number>();
+
+      candidateNodes.forEach(f => {
+        dependencyOutDegree.set(f.id, new Set<string>());
+        dependencyInDegree.set(f.id, new Set<string>());
+        callOutDegree.set(f.id, 0);
+        callInDegree.set(f.id, 0);
+        classCount.set(f.id, 0);
+        functionCount.set(f.id, 0);
+      });
+
+      rawNodes.forEach(n => {
+        if (n.type === 'function') {
+          const fid = fnToFile.get(n.id);
+          if (fid && functionCount.has(fid)) functionCount.set(fid, functionCount.get(fid)! + 1);
+        }
+        if (n.type === 'class') {
+          const fid = classToFile.get(n.id);
+          if (fid && classCount.has(fid)) classCount.set(fid, classCount.get(fid)! + 1);
+        }
+      });
+
+      rawEdges.forEach(e => {
+        if (e.type === 'FUNCTION_CALLS_FUNCTION') {
+          const srcFile = fnToFile.get(e.source);
+          const tgtFile = fnToFile.get(e.target);
+          if (srcFile && tgtFile && srcFile !== tgtFile) {
+            if (callOutDegree.has(srcFile)) callOutDegree.set(srcFile, callOutDegree.get(srcFile)! + 1);
+            if (callInDegree.has(tgtFile)) callInDegree.set(tgtFile, callInDegree.get(tgtFile)! + 1);
+            if (dependencyOutDegree.has(srcFile)) dependencyOutDegree.get(srcFile)!.add(tgtFile);
+            if (dependencyInDegree.has(tgtFile)) dependencyInDegree.get(tgtFile)!.add(srcFile);
+          }
+        }
+        if (e.type === 'INHERITS_FROM') {
+          const srcFile = classToFile.get(e.source);
+          const tgtFile = classToFile.get(e.target);
+          if (srcFile && tgtFile && srcFile !== tgtFile) {
+            if (dependencyOutDegree.has(srcFile)) dependencyOutDegree.get(srcFile)!.add(tgtFile);
+            if (dependencyInDegree.has(tgtFile)) dependencyInDegree.get(tgtFile)!.add(srcFile);
+          }
+        }
+      });
+
+      const getExplorationScore = (n: RealGraphNode) => {
+        const depIn = dependencyInDegree.get(n.id)?.size || 0;
+        const depOut = dependencyOutDegree.get(n.id)?.size || 0;
+        const callIn = callInDegree.get(n.id) || 0;
+        const callOut = callOutDegree.get(n.id) || 0;
+        const cls = classCount.get(n.id) || (n.metadata.classes_count as number) || 0;
+        const fn = functionCount.get(n.id) || (n.metadata.functions_count as number) || 0;
+        
+        const lbl = n.label.toLowerCase();
+        const isEntry = lbl.includes('main') || lbl.includes('app') || lbl.includes('index') || lbl.includes('server') || lbl.includes('init');
+        const entryPointBonus = isEntry ? 100 : 0;
+
+        return (
+          depIn * 4 +
+          depOut * 2 +
+          callIn * 3 +
+          callOut * 1 +
+          cls * 2 +
+          fn * 0.5 +
+          entryPointBonus
+        );
+      };
+
+      const top = [...candidateNodes].sort((a, b) => getExplorationScore(b) - getExplorationScore(a)).slice(0, 15);
+      const topIds = new Set(top.map(n => n.id));
+
+      // concentric layout mapping
+      const cx = 550, cy = 400;
+      const tiers = [
+        { nodes: top.slice(0, 3),  r: 130 },
+        { nodes: top.slice(3, 8),  r: 300 },
+        { nodes: top.slice(8, 15), r: 490 },
+      ];
+
+      const nodes: Node[] = [];
+      tiers.forEach(({ nodes: tierNodes, r }) => {
+        tierNodes.forEach((f, idx) => {
+          const angle = (idx / Math.max(tierNodes.length, 1)) * Math.PI * 2 - Math.PI / 2;
+          nodes.push({
+            id: f.id, type: 'realNode',
+            position: { x: Math.cos(angle) * r + cx, y: Math.sin(angle) * r + cy },
+            data: { 
+              label: f.label, 
+              type: fileNodes.length > 0 ? 'file' : f.type, 
+              metadata: {
+                ...f.metadata,
+                exploration_score: getExplorationScore(f)
+              } 
+            }
+          });
+        });
+      });
+
+      // Derive file→file edges
+      const edgesMap = new globalThis.Map<string, Edge>();
+      const seenFilePairs = new Set<string>();
+
+      rawEdges.forEach(e => {
+        if (e.type === 'FILE_IMPORTS_FILE') {
+          const srcFile = e.source;
+          const tgtFile = e.target;
+          if (!srcFile || !tgtFile || srcFile === tgtFile) return;
+          if (!topIds.has(srcFile) || !topIds.has(tgtFile)) return;
+          const pairKey = [srcFile, tgtFile].sort().join('↔');
+          if (seenFilePairs.has(pairKey)) return;
+          seenFilePairs.add(pairKey);
+          addEdge(edgesMap, `dep:${pairKey}`, srcFile, tgtFile, 'FILE_IMPORTS_FILE', 'file imports file', e.properties);
+        }
+      });
+
+      // Fallback: if no explicit import edges, project them from calls/inheritance
+      if (edgesMap.size === 0) {
+        rawEdges.forEach(e => {
+          if (e.type !== 'FUNCTION_CALLS_FUNCTION') return;
+          const srcFile = fnToFile.get(e.source);
+          const tgtFile = fnToFile.get(e.target);
+          if (!srcFile || !tgtFile || srcFile === tgtFile) return;
+          if (!topIds.has(srcFile) || !topIds.has(tgtFile)) return;
+          const pairKey = [srcFile, tgtFile].sort().join('↔');
+          if (seenFilePairs.has(pairKey)) return;
+          seenFilePairs.add(pairKey);
+          addEdge(edgesMap, `dep:${pairKey}`, srcFile, tgtFile, 'PROJECTED_DEPENDENCY', 'projected dependency', { confidence: 'inferred', resolution_method: 'projected' });
+        });
+      }
+
+      return { nodes, edges: Array.from(edgesMap.values()) };
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // LEVEL 2 — File Detail View
+    // Center: the file  |  Inner ring: functions/classes it contains
+    //                   |  Outer ring: files it imports / files that import it
+    // ──────────────────────────────────────────────────────────────────────────
+    if (current.type === 'file') {
+      const fileId = current.id;
+      const fileNode = rawNodes.find(n => n.id === fileId);
+      const nodesMap = new globalThis.Map<string, Node>();
+      const edgesMap = new globalThis.Map<string, Edge>();
+
+      // ── Center: the selected file ──
+      addNode(nodesMap, fileId,
+        fileNode?.label ?? fileId.split('/').pop() ?? fileId,
+        'file', 500, 360, fileNode?.metadata ?? {}, { isFocused: true }
+      );
+
+      // ── Inner ring: functions and classes contained in this file ──
+      const contained = rawNodes.filter(n => {
+        if (n.id === fileId || (n.type !== 'function' && n.type !== 'class')) return false;
+        const fp = (n.metadata.file_path as string) ?? (n.metadata.path as string) ?? '';
+        const fname = fileId.split('/').pop()!;
+        return fp === fileId || fp.endsWith(fileId) || fileId.endsWith(fp)
+          || (fname && (fp.includes(fname) || fileId.includes(fp.split('/').pop()!)));
+      }).slice(0, 10);
+
+      // ── Inner ring: contained functions/classes (cap 8, wider ring) ──
+      const innerR = 210;
+      const cappedContained = contained.slice(0, 8);
+      cappedContained.forEach((n, idx) => {
+        const angle = (idx / Math.max(cappedContained.length, 1)) * Math.PI * 2 - Math.PI / 2;
+        addNode(nodesMap, n.id, n.label, n.type,
+          Math.cos(angle) * innerR + 550, Math.sin(angle) * innerR + 400, n.metadata);
+        addEdge(edgesMap, `contains:${fileId}→${n.id}`, fileId, n.id,
+          n.type === 'class' ? 'FILE_CONTAINS_CLASS' : 'FILE_CONTAINS_FUNCTION', 'contains');
+      });
+
+      // ── Outer ring: neighboring files from function call chain ──
+      const containedIds = new Set<string>();
+      rawEdges.forEach(e => {
+        if ((e.type === 'FILE_CONTAINS_FUNCTION' || e.type === 'FILE_CONTAINS_CLASS') && e.source === fileId) {
+          containedIds.add(e.target);
+        }
+      });
+      cappedContained.forEach(n => containedIds.add(n.id));
+
+      const l2FnToFile = new globalThis.Map<string, string>();
+      rawEdges.forEach(e => {
+        if (e.type === 'FILE_CONTAINS_FUNCTION' || e.type === 'FILE_CONTAINS_CLASS') l2FnToFile.set(e.target, e.source);
+      });
+      rawNodes.forEach(n => {
+        if ((n.type === 'function' || n.type === 'class') && !l2FnToFile.has(n.id)) {
+          const fp = (n.metadata.file_path as string) ?? (n.metadata.path as string) ?? '';
+          if (fp) l2FnToFile.set(n.id, fp);
+        }
+      });
+
+      const importsMap = new globalThis.Map<string, RealGraphNode>(); // files we call into
+      const importedByMap = new globalThis.Map<string, RealGraphNode>(); // files that call into us
+      rawEdges.forEach(e => {
+        if (e.type === 'FILE_IMPORTS_FILE') {
+          if (e.source === fileId && !importsMap.has(e.target)) {
+            const n = rawNodes.find(rn => rn.id === e.target);
+            if (n) importsMap.set(e.target, n);
+          }
+          if (e.target === fileId && !importedByMap.has(e.source)) {
+            const n = rawNodes.find(rn => rn.id === e.source);
+            if (n) importedByMap.set(e.source, n);
+          }
+        }
+      });
+
+      if (importsMap.size === 0 && importedByMap.size === 0) {
+        rawEdges.forEach(e => {
+          if (e.type !== 'FUNCTION_CALLS_FUNCTION') return;
+          const callerFile = l2FnToFile.get(e.source);
+          const calleeFile = l2FnToFile.get(e.target);
+          if (callerFile === fileId && calleeFile && calleeFile !== fileId && !importsMap.has(calleeFile)) {
+            const n = rawNodes.find(rn => rn.id === calleeFile);
+            if (n) importsMap.set(calleeFile, n);
+          }
+          if (calleeFile === fileId && callerFile && callerFile !== fileId && !importedByMap.has(callerFile)) {
+            const n = rawNodes.find(rn => rn.id === callerFile);
+            if (n) importedByMap.set(callerFile, n);
+          }
+        });
+      }
+
+      const outerR = 430;
+      const importSlice = Array.from(importsMap.values()).slice(0, 6);
+      const importedBySlice = Array.from(importedByMap.values()).filter(n => !importsMap.has(n.id)).slice(0, 6);
+
+      // Imports: right semicircle (−90° to +90°)
+      importSlice.forEach((n, idx) => {
+        const span = Math.min(importSlice.length - 1, 4) * (Math.PI * 0.9 / 4);
+        const startAngle = -span / 2;
+        const angle = importSlice.length <= 1 ? 0 : startAngle + (idx / (importSlice.length - 1)) * span;
+        addNode(nodesMap, n.id, n.label, 'file',
+          Math.cos(angle) * outerR + 550, Math.sin(angle) * outerR + 400, n.metadata);
+        const rawEdge = rawEdges.find(re => re.type === 'FILE_IMPORTS_FILE' && re.source === fileId && re.target === n.id);
+        if (rawEdge) {
+          addEdge(edgesMap, `imports:${fileId}→${n.id}`, fileId, n.id, 'FILE_IMPORTS_FILE', 'file imports file', rawEdge.properties);
+        } else {
+          addEdge(edgesMap, `imports:${fileId}→${n.id}`, fileId, n.id, 'PROJECTED_DEPENDENCY', 'projected dependency', { confidence: 'inferred', resolution_method: 'projected' });
+        }
+      });
+
+      // ImportedBy: left semicircle (90° to 270°)
+      importedBySlice.forEach((n, idx) => {
+        const span = Math.min(importedBySlice.length - 1, 4) * (Math.PI * 0.9 / 4);
+        const startAngle = Math.PI - span / 2;
+        const angle = importedBySlice.length <= 1 ? Math.PI : startAngle + (idx / (importedBySlice.length - 1)) * span;
+        addNode(nodesMap, n.id, n.label, 'file',
+          Math.cos(angle) * outerR + 550, Math.sin(angle) * outerR + 400, n.metadata);
+        const rawEdge = rawEdges.find(re => re.type === 'FILE_IMPORTS_FILE' && re.source === n.id && re.target === fileId);
+        if (rawEdge) {
+          addEdge(edgesMap, `importedby:${n.id}→${fileId}`, n.id, fileId, 'FILE_IMPORTS_FILE', 'file imports file', rawEdge.properties);
+        } else {
+          addEdge(edgesMap, `importedby:${n.id}→${fileId}`, n.id, fileId, 'PROJECTED_DEPENDENCY', 'projected dependency', { confidence: 'inferred', resolution_method: 'projected' });
+        }
+      });
+
+      return { nodes: Array.from(nodesMap.values()), edges: Array.from(edgesMap.values()) };
+    }
+
+    // ── LEVEL 3a: Function Detail ──
+    // Top: siblings (module context) | Left: callers | Center | Right: callees
+    if (current.type === 'function') {
+      const fnId = current.id;
+      const fnNode = rawNodes.find(n => n.id === fnId);
+      const nodesMap = new globalThis.Map<string, Node>();
+      const edgesMap = new globalThis.Map<string, Edge>();
+      const cx3 = 530, cy3 = 420;
+
+      addNode(nodesMap, fnId, fnNode?.label ?? fnId.split(':').pop() ?? fnId,
+        'function', cx3, cy3, fnNode?.metadata ?? {}, { isFocused: true });
+
+      // Top row: up to 5 sibling functions from same file (module context, no file node)
+      const fnFileId = (fnNode?.metadata.file_path as string) ?? (fnNode?.metadata.path as string) ?? '';
+      if (fnFileId && showSiblings) {
+        const fnFname = fnFileId.split('/').pop()!;
+        const siblings = rawNodes.filter(n => {
+          if (n.id === fnId || n.type !== 'function') return false;
+          const fp = (n.metadata.file_path as string) ?? (n.metadata.path as string) ?? '';
+          return fp === fnFileId || fp.endsWith(fnFileId) || fnFileId.endsWith(fp)
+            || (fnFname && (fp.includes(fnFname) || fnFileId.includes(fp.split('/').pop()!)));
+        }).slice(0, 5);
+        const totalW = Math.max(siblings.length - 1, 0) * 220;
+        siblings.forEach((s, idx) => {
+          addNode(nodesMap, s.id, s.label, 'function',
+            cx3 - totalW / 2 + idx * 220, 80, s.metadata, { dimmed: true });
+          addEdge(edgesMap, `sibling:${fnId}|${s.id}`, fnId, s.id, 'SIBLING_FUNCTION', 'sibling');
+        });
+      }
+
+      // Left column: callers (who calls this fn) — 120px vertical spacing
+      const callers: RealGraphNode[] = [];
+      const seenC = new Set<string>([fnId]);
+      rawEdges.forEach(e => {
+        if (e.type === 'FUNCTION_CALLS_FUNCTION' && e.target === fnId && !seenC.has(e.source)) {
+          const src = rawNodes.find(n => n.id === e.source);
+          if (src) { seenC.add(e.source); callers.push(src); }
+        }
+      });
+      const callerSlice = callers.slice(0, 6);
+      const callerStartY = cy3 - ((callerSlice.length - 1) / 2) * 120;
+      callerSlice.forEach((c, idx) => {
+        addNode(nodesMap, c.id, c.label, c.type, 160, callerStartY + idx * 120, c.metadata);
+        const rawEdge = rawEdges.find(re => re.type === 'FUNCTION_CALLS_FUNCTION' && re.source === c.id && re.target === fnId);
+        addEdge(edgesMap, `caller:${c.id}|${fnId}`, c.id, fnId, 'FUNCTION_CALLS_FUNCTION', 'calls', rawEdge?.properties);
+      });
+
+      // Right column: callees (what this fn calls) — 120px vertical spacing
+      const callees: RealGraphNode[] = [];
+      const seenE = new Set<string>([fnId]);
+      rawEdges.forEach(e => {
+        if (e.type === 'FUNCTION_CALLS_FUNCTION' && e.source === fnId && !seenE.has(e.target)) {
+          const tgt = rawNodes.find(n => n.id === e.target);
+          if (tgt) { seenE.add(e.target); callees.push(tgt); }
+        }
+      });
+      const calleeSlice = callees.slice(0, 6);
+      const calleeStartY = cy3 - ((calleeSlice.length - 1) / 2) * 120;
+      calleeSlice.forEach((c, idx) => {
+        if (nodesMap.has(c.id)) return;
+        addNode(nodesMap, c.id, c.label, c.type, 900, calleeStartY + idx * 120, c.metadata);
+        const rawEdge = rawEdges.find(re => re.type === 'FUNCTION_CALLS_FUNCTION' && re.source === fnId && re.target === c.id);
+        addEdge(edgesMap, `callee:${fnId}|${c.id}`, fnId, c.id, 'FUNCTION_CALLS_FUNCTION', 'calls', rawEdge?.properties);
+      });
+
+      return { nodes: Array.from(nodesMap.values()), edges: Array.from(edgesMap.values()) };
+    }
+
+    // ── LEVEL 3b: Class Detail ──
+    // Above: parent classes | Center | Right: subclasses | Below: methods grid
+    if (current.type === 'class') {
+      const classId = current.id;
+      const classNode = rawNodes.find(n => n.id === classId);
+      const nodesMap = new globalThis.Map<string, Node>();
+      const edgesMap = new globalThis.Map<string, Edge>();
+
+      addNode(nodesMap, classId, classNode?.label ?? classId.split(':').pop() ?? classId,
+        'class', 530, 380, classNode?.metadata ?? {}, { isFocused: true });
+
+      // Methods below — 3-column grid, 200px x-gap, 110px y-gap
+      const methods = rawNodes.filter(n => {
+        const cn = (n.metadata.class_name as string) ?? '';
+        return n.type === 'function' && cn !== '' && cn === classNode?.label;
+      }).slice(0, 9);
+      const cols = Math.min(methods.length, 3);
+      methods.forEach((m, idx) => {
+        const col = idx % cols;
+        const row = Math.floor(idx / cols);
+        const totalW = Math.max(cols - 1, 0) * 200;
+        addNode(nodesMap, m.id, m.label, 'function',
+          530 - totalW / 2 + col * 200, 560 + row * 110, m.metadata);
+        addEdge(edgesMap, `method:${classId}|${m.id}`, classId, m.id, 'CLASS_CONTAINS_FUNCTION', 'method');
+      });
+
+      // Parent classes above (y=130)
+      rawEdges.filter(e => e.type === 'INHERITS_FROM' && e.source === classId).slice(0, 2)
+        .forEach((e, idx) => {
+          const p = rawNodes.find(n => n.id === e.target);
+          if (!p || nodesMap.has(p.id)) return;
+          addNode(nodesMap, p.id, p.label, 'class', 530 + idx * 240 - 120, 130, p.metadata);
+          addEdge(edgesMap, `parent:${e.id}`, e.source, e.target, 'INHERITS_FROM', 'inherits');
+        });
+
+      // Subclasses on right (x=860, 120px y-gap)
+      const childEdges = rawEdges.filter(e => e.type === 'INHERITS_FROM' && e.target === classId);
+      const childStartY = 380 - ((Math.min(childEdges.length, 4) - 1) / 2) * 120;
+      childEdges.slice(0, 4).forEach((e, idx) => {
+        const ch = rawNodes.find(n => n.id === e.source);
+        if (!ch || nodesMap.has(ch.id)) return;
+        addNode(nodesMap, ch.id, ch.label, 'class', 860, childStartY + idx * 120, ch.metadata);
+        addEdge(edgesMap, `child:${e.id}`, e.source, e.target, 'INHERITS_FROM', 'inherited by');
+      });
+
+      return { nodes: Array.from(nodesMap.values()), edges: Array.from(edgesMap.values()) };
+    }
+
+    return { nodes: [], edges: [] };
+
+  }, [navPath, rawNodes, rawEdges, isRealGraph, showSiblings, searchStops]);
+
+
+
+  // Mock node for CodeInspector when no real graph loaded
   const selectedMockNode = useMemo(() => {
     if (isRealGraph) return null;
     return mockFileNodes.find(n => n.id === selectedFileId) || null;
   }, [isRealGraph, selectedFileId]);
 
-  // 2. Compute dynamic layout coordinates (layout hook contains zero React Flow state updates)
+  // Layout hook for subsystem minimap
   const { subsystems, layoutNodes } = useExplorerLayout(
     rawNodes.length > 0 ? rawNodes : [],
     rawEdges.length > 0 ? rawEdges : [],
     viewMode === 'system' ? expandedSubsystemId : null
   );
 
+  // Camera controls
   const { zoomToNode, resetCamera } = useExplorerCamera();
 
-  // 3. Pure React Flow Graph builder coordinates
-  const initialGraph = useMemo(() => {
-    return buildReactFlowGraph(
-      viewMode,
-      layoutNodes,
-      subsystems,
-      rawNodes,
-      rawEdges,
-      expandedSubsystemId,
-      isRealGraph,
-      expandSubsystem,
-      collapseSubsystem,
-      zoomToNode,
-      resetCamera
-    );
-  }, [viewMode, layoutNodes, subsystems, rawNodes, rawEdges, expandedSubsystemId, isRealGraph, expandSubsystem, collapseSubsystem, zoomToNode, resetCamera]);
+  const [localNodes, setLocalNodes, onNodesChange] = useNodesState([]);
+  const [localEdges, setLocalEdges, onEdgesChange] = useEdgesState([]);
+  const { fitView } = useReactFlow();
+  // Store fitView in a ref so it's not a useEffect dep (React Flow guarantees it's stable)
+  const fitViewRef = React.useRef(fitView);
+  React.useEffect(() => { fitViewRef.current = fitView; });
 
-  const [nodes, setNodes, onNodesChange] = useNodesState(initialGraph.nodes);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(initialGraph.edges);
-
-  // Controlled nodes/edges synchronizer
-  // Only updates controlled states when raw graph arrays, toggles, or layout levels change.
-  // This completely eliminates loops because dragging nodes does not recalculate initialGraph.
+  // Sync projected graph to React Flow — runs only when projectedGraph changes
   useEffect(() => {
-    setNodes(initialGraph.nodes);
-    setEdges(initialGraph.edges);
-  }, [initialGraph, setNodes, setEdges]);
+    setLocalNodes(projectedGraph.nodes as any);
+    setLocalEdges(projectedGraph.edges as any);
+    if (projectedGraph.nodes.length > 0) {
+      // Delay allows React Flow to measure node dimensions before fitting viewport
+      const t = setTimeout(() => { fitViewRef.current({ padding: 0.25, duration: 400 }); }, 200);
+      return () => clearTimeout(t);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectedGraph]);
 
-  // 4. Spotlight projection layers derived on-the-fly during render (No state updates inside)
-  const { spotlightNodes, spotlightEdges } = useSpotlightMode(
-    nodes,
-    edges,
-    selectedFileId,
-    expandedSubsystemId
-  );
+  // Alias for ReactFlow component
+  const nodes = localNodes;
+  const processedEdges = useMemo(() => {
+    const activeNodeId = hoveredNodeId || selectedEntityId || selectedFileId;
+    return localEdges.map(edge => {
+      const isConnected = activeNodeId && (edge.source === activeNodeId || edge.target === activeNodeId);
+      return {
+        ...edge,
+        data: {
+          ...edge.data,
+          isHighlighted: isConnected,
+          opacity: activeNodeId 
+            ? (isConnected ? 0.95 : 0.04) 
+            : 0.12 // Faint default opacity to avoid clutter
+        }
+      };
+    });
+  }, [localEdges, hoveredNodeId, selectedEntityId, selectedFileId]);
+
+  const edges = processedEdges;
+
+  // Dynamic Navigation Driller
+  const handleExploreNode = useCallback((
+    id: string, 
+    type: 'file' | 'class' | 'function', 
+    focusTarget?: 'center' | 'containment' | 'dependencies'
+  ) => {
+    setIsDetailsCollapsed(false);
+    const matchedNode = rawNodes.find(n => n.id === id);
+    const label = matchedNode?.label ?? id.split('/').pop() ?? id;
+    
+    if (!focusTarget) {
+      setShowSiblings(false);
+    }
+
+    setNavPath(prev => {
+      const existsIdx = prev.findIndex(item => item.id === id);
+      if (existsIdx !== -1) {
+        return prev.slice(0, existsIdx + 1);
+      }
+      return [...prev, { id, label, type }];
+    });
+
+    if (type === 'file') {
+      selectFile(id);
+      setSelectedEntityId(null);
+    } else {
+      setSelectedEntityId(id);
+    }
+
+    // Centering visual camera feedback
+    setTimeout(() => {
+      if (fitViewRef.current) {
+        if (focusTarget === 'containment') {
+          const targets = localNodes.filter(n => n.data?.type === 'function' || n.data?.type === 'class');
+          if (targets.length > 0) fitViewRef.current({ nodes: targets, duration: 600, padding: 1.3 });
+        } else if (focusTarget === 'dependencies') {
+          const targets = localNodes.filter(n => n.data?.type === 'file' && n.id !== id);
+          if (targets.length > 0) fitViewRef.current({ nodes: targets, duration: 600, padding: 1.3 });
+        } else {
+          fitViewRef.current({ nodes: [{ id }], duration: 600, padding: 1.5 });
+        }
+      }
+    }, 100);
+  }, [rawNodes, selectFile, localNodes]);
+
+  // Breadcrumbs Trail click handler
+  const handleBreadcrumbClick = useCallback((idx: number) => {
+    // Reset sibling functions visibility on breadcrumb jump
+    setShowSiblings(false);
+
+    setNavPath(prev => {
+      const sliced = prev.slice(0, idx + 1);
+      const target = sliced[sliced.length - 1];
+      if (target.id === 'system') {
+        selectFile(null);
+        setSelectedEntityId(null);
+      } else if (target.type === 'file') {
+        selectFile(target.id);
+        setSelectedEntityId(null);
+      } else {
+        setSelectedEntityId(target.id);
+      }
+      return sliced;
+    });
+  }, [selectFile]);
 
   const selectedSubsystem = useMemo(() => {
     return subsystems.find(s => s.id === selectedSubsystemId) || null;
@@ -639,6 +1141,44 @@ const GraphExplorerInner: React.FC = () => {
   const selectedFileNode = useMemo(() => {
     return rawNodes.find(n => n.id === selectedFileId) || null;
   }, [rawNodes, selectedFileId]);
+
+  const selectedEntityNode = useMemo(() => {
+    return rawNodes.find(n => n.id === selectedEntityId) || null;
+  }, [rawNodes, selectedEntityId]);
+
+  const getLatestCommitForNode = useCallback((n: RealGraphNode | null) => {
+    if (!n || !gitActivity || !gitActivity.recentCommits) return null;
+    const meta = n.metadata || {};
+    const filePath = (meta.file_path as string) ?? (meta.path as string) ?? (n.id.includes(':') ? n.id.split(':')[0] : n.id);
+    if (!filePath) return null;
+
+    const clean = (p: string) => p.replace(/\\/g, '/').toLowerCase();
+    const cPath = clean(filePath);
+
+    return gitActivity.recentCommits.find(c => 
+      c.filesChanged?.some(fc => {
+        const cFc = clean(fc);
+        return cFc === cPath || cPath.endsWith('/' + cFc) || cFc.endsWith('/' + cPath);
+      })
+    ) || null;
+  }, [gitActivity]);
+
+  const getCommitsForNode = useCallback((n: RealGraphNode | null) => {
+    if (!n || !gitActivity || !gitActivity.recentCommits) return [];
+    const meta = n.metadata || {};
+    const filePath = (meta.file_path as string) ?? (meta.path as string) ?? (n.id.includes(':') ? n.id.split(':')[0] : n.id);
+    if (!filePath) return [];
+
+    const clean = (p: string) => p.replace(/\\/g, '/').toLowerCase();
+    const cPath = clean(filePath);
+
+    return gitActivity.recentCommits.filter(c => 
+      c.filesChanged?.some(fc => {
+        const cFc = clean(fc);
+        return cFc === cPath || cPath.endsWith('/' + cFc) || cFc.endsWith('/' + cPath);
+      })
+    );
+  }, [gitActivity]);
 
   // Sidebar list filters
   const sidebarNodes = useMemo(() => {
@@ -665,14 +1205,26 @@ const GraphExplorerInner: React.FC = () => {
 
   // Node click handler
   const onNodeClick: NodeMouseHandler = useCallback((_event, node) => {
+    setSelectedEdge(null);
     const isSubsystemNode = node.id.startsWith('subsystem:');
     if (isSubsystemNode) {
       const subId = node.id.replace('subsystem:', '');
       selectSubsystem(subId);
     } else {
-      selectFile(node.id);
+      const nodeType = node.data?.type ?? 'file';
+      handleExploreNode(node.id, nodeType);
+      if (node.position) {
+        zoomToNode(node.position.x + 80, node.position.y + 32, 1.15);
+      }
     }
-  }, [selectSubsystem, selectFile]);
+  }, [selectSubsystem, handleExploreNode, zoomToNode]);
+
+  // Edge click handler
+  const onEdgeClick = useCallback((_event: React.MouseEvent, edge: Edge) => {
+    rawClearSelection();
+    setSelectedEntityId(null);
+    setSelectedEdge(edge);
+  }, [rawClearSelection]);
 
   // Trigger search actions: center, expand, and spotlight
   const triggerSearch = (query: string) => {
@@ -681,19 +1233,36 @@ const GraphExplorerInner: React.FC = () => {
 
     const matchedNode = rawNodes.find(n => n.label.toLowerCase().includes(cleanQuery));
     if (matchedNode) {
-      // Find parent subsystem group
-      const parentSub = subsystems.find(s => s.fileIds.includes(matchedNode.id));
-      if (parentSub) {
-        expandSubsystem(parentSub.id);
-      }
-      selectFile(matchedNode.id);
-
-      // Locate layout coordinate to zoom camera
-      const targetPos = layoutNodes.find(n => n.id === matchedNode.id);
-      if (targetPos) {
-        zoomToNode(targetPos.x, targetPos.y, 1.25);
-      }
+      handleExploreNode(matchedNode.id, matchedNode.type as any);
     }
+  };
+
+  const triggerMultiSearch = () => {
+    const matched = searchStops
+      .map(q => q.trim().toLowerCase())
+      .filter(Boolean)
+      .map(q => rawNodes.find(n => n.label.toLowerCase().includes(q)))
+      .filter(Boolean);
+
+    if (matched.length === 0) return;
+
+    setNavPath([
+      { id: 'multi-search', label: 'Multi-Search Trace', type: 'multi-search' }
+    ]);
+    
+    // Fit view to the search stops
+    setTimeout(() => {
+      if (fitViewRef.current) {
+        fitViewRef.current({ duration: 600, padding: 0.2 });
+      }
+    }, 200);
+  };
+
+  const clearMultiSearch = () => {
+    setSearchStops(['']);
+    setNavPath([{ id: 'system', label: 'Repository', type: 'system' }]);
+    selectFile(null);
+    setSelectedEntityId(null);
   };
 
   const typeFilters = useMemo(() => {
@@ -703,250 +1272,525 @@ const GraphExplorerInner: React.FC = () => {
     return ['all', 'component', 'hook', 'util', 'type', 'context', 'api'];
   }, [isRealGraph, rawNodes]);
 
+  const nodesSearchFiltered = useMemo(() => {
+    const q = searchQuery.toLowerCase();
+    if (isRealGraph) {
+      return rawNodes.filter(n =>
+        q === '' || n.label.toLowerCase().includes(q) || (n.metadata.file_path as string | undefined)?.toLowerCase().includes(q)
+      );
+    }
+    return mockFileNodes.filter(n =>
+      q === '' || n.name.toLowerCase().includes(q) || n.path.toLowerCase().includes(q)
+    );
+  }, [isRealGraph, rawNodes, searchQuery]);
+
+  const typeFilterCounts = useMemo(() => {
+    const counts: Record<string, number> = { all: nodesSearchFiltered.length };
+    nodesSearchFiltered.forEach(n => {
+      const t = n.type as string;
+      counts[t] = (counts[t] ?? 0) + 1;
+    });
+    return counts;
+  }, [nodesSearchFiltered]);
+
   return (
-    <div className="flex h-full relative font-sans">
-      <OnboardingOverlay />
+    <ExplorerContext.Provider
+      value={{
+        expandedSubsystemId,
+        expandSubsystem,
+        collapseSubsystem,
+        zoomToNode,
+        resetCamera,
+        layoutNodes
+      }}
+    >
+      <div className="flex h-full relative font-sans">
+        <OnboardingOverlay />
 
-      {/* Left Sidebar */}
-      <motion.div
-        animate={{ width: isSidebarCollapsed ? 56 : 220 }}
-        className="glass border-r border-[#222222] bg-[#0E0E0E] flex flex-col flex-shrink-0 z-10 relative overflow-hidden"
-      >
-        {isSidebarCollapsed ? (
-          <div className="flex flex-col items-center py-4 gap-6 h-full">
-            <button
-              onClick={() => setIsSidebarCollapsed(false)}
-              className="p-1.5 rounded-lg border border-[#222222] bg-[#131313] text-[#A0A0A0] hover:text-[#F5F5F5] transition-colors"
-              title="Expand Sidebar"
-            >
-              <ChevronRight size={14} />
-            </button>
-            <div className="w-full border-t border-[#222222] my-1" />
-            <div className="flex flex-col items-center gap-4 text-[#A0A0A0] font-mono text-[10px]">
-              <GitBranch size={16} className="text-[#FF6B1A]" />
-              <span>{isRealGraph ? rawNodes.length : filteredMockNodes.length} N</span>
-            </div>
-            <button 
-              onClick={() => setIsSidebarCollapsed(false)}
-              className="p-2 rounded-lg hover:bg-white/[0.04] text-[#A0A0A0]"
-            >
-              <Search size={14} />
-            </button>
-          </div>
-        ) : (
-          <>
-            <div className="p-3 border-b border-[#222222] bg-white/[0.01]">
-              <div className="flex items-center gap-2 mb-3">
-                <GitBranch size={14} className="text-[#FF6B1A]" />
-                <span className="text-xs font-semibold text-[#F5F5F5] font-[Syne] truncate max-w-[110px]" title={repoName || 'Explorer'}>
-                  {repoName || 'Explorer'}
-                </span>
-                <button
-                  onClick={() => setIsSidebarCollapsed(true)}
-                  className="p-1 rounded-lg border border-[#222222] bg-[#131313] text-[#A0A0A0] hover:text-[#F5F5F5] ml-auto transition-colors"
-                  title="Collapse Sidebar"
-                >
-                  <ChevronLeft size={12} />
-                </button>
-              </div>
-              
-              <div className="flex items-center justify-between text-[10px] text-[#A0A0A0] font-mono mb-3 bg-[#131313] p-1.5 rounded-lg border border-[#222222]">
-                <span>Nodes: {isRealGraph ? rawNodes.length : filteredMockNodes.length}</span>
-                <span>Edges: {isRealGraph ? rawEdges.length : mockDependencyEdges.length}</span>
-              </div>
-
-              {/* Search */}
-              <div className="relative">
-                <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500" />
-                <input
-                  value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && triggerSearch(searchQuery)}
-                  placeholder="Search & Focus..."
-                  className="w-full bg-[#131313] border border-[#222222] rounded-lg pl-7 pr-3 py-1.5 text-xs text-slate-350 placeholder-slate-655 focus:outline-none focus:border-[#FF6B1A]/50 transition-colors"
-                />
-              </div>
-
-              <div className="flex flex-wrap gap-1 mt-2">
-                {typeFilters.map(t => {
-                  const color = t === 'all' ? '#FF6B1A' : (nodeTypeColors[t] ?? '#FF4500');
-                  const isActive = filterType === t;
-                  return (
-                    <button
-                      key={t}
-                      onClick={() => setFilterType(t)}
-                      className="text-[9px] px-1.5 py-0.5 rounded-md font-semibold uppercase tracking-wider transition-all"
-                      style={{
-                        color: isActive ? color : '#666666',
-                        background: isActive ? `${color}15` : 'transparent',
-                        border: `1px solid ${isActive ? `${color}30` : 'transparent'}`,
-                      }}
-                    >
-                      {t}
-                    </button>
-                  );
-                })}
+        {/* Left Sidebar */}
+        <motion.div
+          animate={{ width: isSidebarCollapsed ? 56 : 260 }}
+          className="glass border-r border-[#222222] bg-[#0E0E0E] flex flex-col flex-shrink-0 z-10 relative overflow-hidden"
+        >
+          {isSidebarCollapsed ? (
+            <div className="flex flex-col items-center py-4 gap-6 h-full">
+              <button
+                onClick={() => setIsSidebarCollapsed(false)}
+                className="p-1.5 rounded-lg border border-[#222222] bg-[#131313] text-[#A0A0A0] hover:text-[#F5F5F5] transition-colors"
+                title="Expand Sidebar"
+              >
+                <ChevronRight size={14} />
+              </button>
+              <div className="w-full border-t border-[#222222] my-1" />
+              <div className="flex flex-col items-center gap-4 text-[#A0A0A0] font-mono text-[10px]">
+                <GitBranch size={16} className="text-[#FF6B1A]" />
+                <span>{isRealGraph ? rawNodes.length : filteredMockNodes.length} N</span>
               </div>
             </div>
+          ) : (
+            <>
+              <div className="p-3 border-b border-[#222222] bg-white/[0.01]">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-7 h-7 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-400 border border-blue-500/20 flex-shrink-0">
+                    <GitBranch size={13} />
+                  </div>
+                  <span className="text-[12px] font-bold text-slate-200 truncate max-w-[125px] font-mono" title={repoName || 'Explorer'}>
+                    {repoName || 'Explorer'}
+                  </span>
+                  <button
+                    onClick={() => setIsSidebarCollapsed(true)}
+                    className="p-1.5 rounded-lg border border-[#222222] bg-[#0E0E12] text-[#A0A0A0] hover:text-[#F5F5F5] ml-auto transition-colors"
+                    title="Collapse Sidebar"
+                  >
+                    <ChevronLeft size={13} />
+                  </button>
+                </div>
+                
+                <div className="flex items-center gap-4 text-[10px] text-slate-400 font-mono my-3 px-1">
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#10B981]" />
+                    <span>Nodes: {isRealGraph ? rawNodes.length : filteredMockNodes.length}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#3B82F6]" />
+                    <span>Edges: {isRealGraph ? rawEdges.length : mockDependencyEdges.length}</span>
+                  </div>
+                </div>
 
-            <div className="flex-1 overflow-y-auto p-2 space-y-0.5 bg-white/[0.005]">
-              {loading ? (
-                Array.from({ length: 6 }).map((_, i) => (
-                  <div key={i} className="shimmer h-8 rounded-lg mx-0.5" />
-                ))
-              ) : isRealGraph ? (
-                sidebarNodes.map(node => {
-                  const cfg = realNodeTypeConfig[node.type as string];
-                  return (
+                {/* Search & Pathfinder Switcher */}
+                <div className="grid grid-cols-2 border border-white/5 rounded-xl p-0.5 bg-[#0B0B0F] mb-3">
+                  <button
+                    onClick={() => setSearchMode('single')}
+                    className={`text-[9px] py-1.5 font-bold uppercase tracking-wider rounded-lg transition-all font-mono ${
+                      searchMode === 'single' ? 'bg-[#141b2e] border border-blue-500/20 text-[#60a5fa] shadow-sm' : 'text-slate-500 hover:text-slate-300 border border-transparent'
+                    }`}
+                  >
+                    Single Search
+                  </button>
+                  <button
+                    onClick={() => setSearchMode('path')}
+                    className={`text-[9px] py-1.5 font-bold uppercase tracking-wider rounded-lg transition-all font-mono ${
+                      searchMode === 'path' ? 'bg-[#141b2e] border border-blue-500/20 text-[#60a5fa] shadow-sm' : 'text-slate-500 hover:text-slate-300 border border-transparent'
+                    }`}
+                  >
+                    Path Finder
+                  </button>
+                </div>
+
+                {searchMode === 'single' ? (
+                  <div className="relative">
+                    <Search size={11} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                    <input
+                      value={searchQuery}
+                      onChange={e => setSearchQuery(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && triggerSearch(searchQuery)}
+                      placeholder="Search & Focus..."
+                      className="w-full bg-[#0B0B0F] border border-white/5 rounded-xl pl-8 pr-3 py-1.5 text-[10.5px] text-slate-300 placeholder-slate-650 focus:outline-none focus:border-blue-500/40 transition-colors font-mono"
+                    />
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-2 bg-white/[0.01] border border-white/5 rounded-xl p-2.5">
+                    {searchStops.map((stop, idx) => (
+                      <div key={idx} className="flex items-center gap-1.5 relative">
+                        <Search size={10} className="absolute left-2.5 text-slate-550" />
+                        <input
+                          value={stop}
+                          onChange={e => {
+                            const newStops = [...searchStops];
+                            newStops[idx] = e.target.value;
+                            setSearchStops(newStops);
+                          }}
+                          placeholder={idx === 0 ? "Start (Main Node)..." : `Stop ${idx + 1}...`}
+                          className="w-full bg-[#0B0B0F] border border-white/5 rounded-lg pl-7 pr-7 py-1.5 text-[10.5px] text-slate-300 placeholder-slate-600 focus:outline-none focus:border-blue-500/40 transition-all font-mono"
+                        />
+                        {searchStops.length > 1 && (
+                          <button
+                            onClick={() => {
+                              const newStops = searchStops.filter((_, sIdx) => sIdx !== idx);
+                              setSearchStops(newStops);
+                            }}
+                            className="absolute right-2.5 text-slate-550 hover:text-rose-500 text-[10px] p-0.5 rounded transition-colors"
+                            title="Remove Stop"
+                          >
+                            ×
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                    <div className="flex gap-2 mt-1">
+                      <button
+                        onClick={() => setSearchStops([...searchStops, ''])}
+                        className="flex-1 text-[9px] font-bold py-1.5 rounded-lg bg-white/[0.03] border border-white/5 text-slate-400 hover:text-slate-200 transition-colors uppercase tracking-wider"
+                      >
+                        + Add Stop
+                      </button>
+                      <button
+                        onClick={triggerMultiSearch}
+                        className="flex-1 text-[9px] font-bold py-1.5 rounded-lg bg-[#FF6B1A] text-[#04050A] hover:bg-[#ff8033] transition-colors uppercase tracking-wider shadow-md hover:shadow-lg"
+                      >
+                        Trace Path
+                      </button>
+                    </div>
+                    {navPath[0]?.id === 'multi-search' && (
+                      <button
+                        onClick={clearMultiSearch}
+                        className="w-full text-[9px] font-bold py-1.5 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-455 hover:bg-rose-500/20 transition-colors uppercase tracking-wider"
+                      >
+                        Clear Pathfinder
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2 mt-4 font-mono px-1">FILTER CLASS</div>
+                <div className="grid grid-cols-2 gap-2 mt-1">
+                  {typeFilters.map(t => {
+                    const isActive = filterType === t;
+                    const count = typeFilterCounts[t] ?? 0;
+                    return (
+                      <button
+                        key={t}
+                        onClick={() => setFilterType(t)}
+                        className={`flex flex-col items-start p-2 rounded-xl border text-left transition-all ${
+                          isActive
+                            ? 'bg-[#131b2e] border-blue-500/30 text-blue-400'
+                            : 'bg-[#0B0B0F] border-white/5 text-slate-400 hover:bg-white/[0.02]'
+                        }`}
+                      >
+                        <span className={`text-[10px] font-bold uppercase tracking-wider ${isActive ? 'text-blue-400' : 'text-slate-300'}`}>
+                          {t}
+                        </span>
+                        <span className="text-[9px] text-slate-500 mt-0.5 font-mono">
+                          {count} items
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-2 space-y-0.5 bg-white/[0.005]">
+                {loading ? (
+                  Array.from({ length: 6 }).map((_, i) => (
+                    <div key={i} className="shimmer h-8 rounded-lg mx-0.5" />
+                  ))
+                ) : isRealGraph ? (
+                  sidebarNodes.map(node => {
+                    const cfg = realNodeTypeConfig[node.type as string];
+                    const isSelected = node.id === selectedFileId || node.id === selectedEntityId;
+                    return (
+                      <button
+                        key={node.id}
+                        onClick={() => { handleExploreNode(node.id, node.type as any); }}
+                        className={`w-full text-left px-2.5 py-2 rounded-lg transition-all flex items-center gap-2 group border ${
+                          isSelected
+                            ? 'bg-[#FF6B1A]/15 border-[#FF6B1A]/20 shadow-md'
+                            : 'border-transparent hover:bg-white/[0.04]'
+                        }`}
+                      >
+                        <div
+                          className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                          style={{ background: cfg?.color ?? '#FF6B1A' }}
+                        />
+                        <span className="text-[11px] font-mono text-slate-400 group-hover:text-slate-200 truncate transition-colors">
+                          {node.label}
+                        </span>
+                      </button>
+                    );
+                  })
+                ) : (
+                  filteredMockNodes.map(node => (
                     <button
                       key={node.id}
-                      onClick={() => { selectFile(node.id); }}
-                      className={`w-full text-left px-2.5 py-2 rounded-lg transition-all flex items-center gap-2 group border ${
-                        selectedFileId === node.id
-                          ? 'bg-[#FF6B1A]/15 border-[#FF6B1A]/20 shadow-md'
-                          : 'border-transparent hover:bg-white/[0.04]'
+                      onClick={() => { handleExploreNode(node.id, 'file'); }}
+                      className={`w-full text-left px-2.5 py-2 rounded-lg transition-all flex items-center gap-2 group border border-transparent ${
+                        selectedFileId === node.id ? 'bg-[#FF6B1A]/15 border border-[#FF6B1A]/20 shadow-md' : 'hover:bg-white/[0.04]'
                       }`}
                     >
                       <div
                         className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-                        style={{ background: cfg?.color ?? '#FF6B1A' }}
+                        style={{ background: nodeTypeColors[node.type] ?? '#FF6B1A' }}
                       />
-                      <span className="text-[11px] font-mono text-slate-400 group-hover:text-slate-200 truncate transition-colors">
-                        {node.label}
-                      </span>
+                      <span className="text-[11px] font-mono text-slate-400 group-hover:text-slate-200 truncate transition-colors">{node.name}</span>
                     </button>
-                  );
-                })
-              ) : (
-                filteredMockNodes.map(node => (
-                  <button
-                    key={node.id}
-                    onClick={() => { selectFile(node.id); }}
-                    className={`w-full text-left px-2.5 py-2 rounded-lg transition-all flex items-center gap-2 group border border-transparent ${
-                      selectedFileId === node.id ? 'bg-[#FF6B1A]/15 border border-[#FF6B1A]/20 shadow-md' : 'hover:bg-white/[0.04]'
-                    }`}
-                  >
-                    <div
-                      className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-                      style={{ background: nodeTypeColors[node.type] ?? '#FF6B1A' }}
-                    />
-                    <span className="text-[11px] font-mono text-slate-400 group-hover:text-slate-200 truncate transition-colors">{node.name}</span>
-                  </button>
-                ))
-              )}
-            </div>
-          </>
-        )}
-      </motion.div>
+                  ))
+                )}
+              </div>
+            </>
+          )}
+        </motion.div>
 
-      {/* Graph Canvas */}
-      <div className="flex-1 relative bg-transparent">
-        
-        {/* Explorer Context Header */}
-        <ExplorerHeader
-          viewMode={viewMode}
-          activeSubsystemName={expandedSubsystemId ? (subsystems.find(s => s.id === expandedSubsystemId)?.name ?? null) : null}
-          activeFileName={selectedFileId ? (rawNodes.find(n => n.id === selectedFileId)?.label ?? null) : null}
-        />
+        {/* Graph Canvas */}
+        <div className="flex-1 relative bg-transparent">
+          
+          {/* Explorer Context Header */}
+          <ExplorerHeader
+            viewMode={viewMode}
+            activeSubsystemName={expandedSubsystemId ? (subsystems.find(s => s.id === expandedSubsystemId)?.name ?? null) : null}
+            activeFileName={selectedFileId ? (rawNodes.find(n => n.id === selectedFileId)?.label ?? null) : null}
+            navPath={navPath}
+            onBreadcrumbClick={handleBreadcrumbClick}
+          />
 
-        {/* View mode toggle */}
-        <div className="absolute top-4 right-4 z-10 flex gap-2 pointer-events-auto">
-          <button
-            onClick={() => {
-              setViewMode(viewMode === 'system' ? 'graph' : 'system');
-              clearSelection();
-              resetCamera();
-            }}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-mono font-bold uppercase tracking-wider border glass border-white/10 text-slate-350 hover:text-slate-100 hover:border-white/20 active:scale-95 shadow-md"
+          {/* View mode toggle */}
+          <div className="absolute top-4 right-4 z-10 flex gap-2 pointer-events-auto">
+            {navPath[navPath.length - 1]?.type === 'function' && (
+              <button
+                onClick={() => setShowSiblings(prev => !prev)}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-mono font-bold uppercase tracking-wider border glass border-white/10 text-slate-350 hover:text-slate-100 hover:border-white/20 active:scale-95 shadow-md"
+              >
+                <Layers size={11} className={showSiblings ? 'text-amber-500' : 'text-slate-400'} />
+                {showSiblings ? 'Hide Sibling Functions' : 'Show Sibling Functions'}
+              </button>
+            )}
+            <button
+              onClick={() => {
+                setViewMode(viewMode === 'system' ? 'graph' : 'system');
+                clearSelection();
+                resetCamera();
+              }}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-mono font-bold uppercase tracking-wider border glass border-white/10 text-slate-350 hover:text-slate-100 hover:border-white/20 active:scale-95 shadow-md"
+            >
+              {viewMode === 'system' ? <Database size={12} /> : <MapIcon size={12} />}
+              Show {viewMode === 'system' ? 'Dependency Graph' : 'System Map'}
+            </button>
+          </div>
+
+          {/* System Overview tracker */}
+          {viewMode === 'system' && (
+            <SystemMinimap
+              subsystems={subsystems}
+              expandedSubsystemId={expandedSubsystemId}
+              onSubsystemClick={(id) => {
+                const pos = layoutNodes.find(n => n.id === `subsystem:${id}`);
+                if (pos) {
+                  expandSubsystem(id);
+                  zoomToNode(pos.x + pos.width / 2, pos.y + pos.height / 2, 0.85);
+                }
+              }}
+            />
+          )}
+
+          {/* Loading / Error states overlays */}
+          <AnimatePresence>
+            {loading && <GraphLoadingOverlay key="loading" />}
+          </AnimatePresence>
+
+          <AnimatePresence>
+            {!loading && !error && rawNodes.length === 0 && (
+              <GraphEmptyState key="empty" />
+            )}
+          </AnimatePresence>
+
+          <AnimatePresence>
+            {!loading && !!error && (
+              <GraphErrorState key="error" message={error} onRetry={refetch} />
+            )}
+          </AnimatePresence>
+
+          <ReactFlow
+            nodes={nodes}
+            edges={edges}
+            onNodesChange={onNodesChange}
+            onEdgesChange={onEdgesChange}
+            onNodeClick={onNodeClick}
+            onEdgeClick={onEdgeClick}
+            onNodeMouseEnter={(_, node) => setHoveredNodeId(node.id)}
+            onNodeMouseLeave={() => setHoveredNodeId(null)}
+            onEdgeMouseEnter={(_, edge) => setHoveredEdge(edge)}
+            onEdgeMouseLeave={() => setHoveredEdge(null)}
+            onPaneClick={() => { clearSelection(); setSelectedEntityId(null); resetCamera(); }}
+            nodeTypes={nodeTypes}
+            edgeTypes={edgeTypes}
+            fitView
+            fitViewOptions={{ padding: 0.25 }}
+            minZoom={0.15}
+            maxZoom={2.5}
+            proOptions={{ hideAttribution: true }}
+            style={{ background: 'transparent' }}
           >
-            {viewMode === 'system' ? <Database size={12} /> : <Map size={12} />}
-            Show {viewMode === 'system' ? 'Dependency Graph' : 'System Map'}
-          </button>
+            <Controls className="bottom-6 left-6" />
+            <Background variant={BackgroundVariant.Dots} gap={24} size={1} color="rgba(255,255,255,0.03)" />
+          </ReactFlow>
+
+          {/* Edge/Connection Legend */}
+          <div style={{
+            position: 'absolute',
+            bottom: '24px',
+            left: '80px',
+            background: 'rgba(15, 15, 20, 0.75)',
+            backdropFilter: 'blur(12px)',
+            border: '1px solid rgba(255,255,255,0.08)',
+            borderRadius: '12px',
+            padding: '12px 14px',
+            zIndex: 10,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '8px',
+            width: '210px',
+            pointerEvents: 'none'
+          }}>
+            <div style={{ fontSize: '9px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(148, 163, 184, 0.55)', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '4px' }}>
+              Connection Legend
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <svg width="24" height="4" style={{ flexShrink: 0 }}>
+                  <line x1="0" y1="2" x2="24" y2="2" stroke="#3b82f6" strokeWidth="2" />
+                </svg>
+                <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.8)' }}>File Imports (Solid Blue)</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <svg width="24" height="4" style={{ flexShrink: 0 }}>
+                  <line x1="0" y1="2" x2="24" y2="2" stroke="#94a3b8" strokeWidth="1.5" strokeDasharray="4 4" />
+                </svg>
+                <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.8)' }}>Projected Imports (Dashed Slate)</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <svg width="24" height="4" style={{ flexShrink: 0 }}>
+                  <line x1="0" y1="2" x2="24" y2="2" stroke="#f97316" strokeWidth="2" />
+                </svg>
+                <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.8)' }}>Resolved Calls (Solid Orange)</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <svg width="24" height="4" style={{ flexShrink: 0 }}>
+                  <line x1="0" y1="2" x2="24" y2="2" stroke="#64748b" strokeWidth="1.5" strokeDasharray="1 4" />
+                </svg>
+                <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.8)' }}>Unresolved Calls (Muted Dotted)</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <svg width="24" height="4" style={{ flexShrink: 0 }}>
+                  <line x1="0" y1="2" x2="24" y2="2" stroke="#475569" strokeWidth="1.5" strokeDasharray="2 2" />
+                </svg>
+                <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.8)' }}>Containments (Thin Dashed)</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <svg width="24" height="4" style={{ flexShrink: 0 }}>
+                  <line x1="0" y1="2" x2="24" y2="2" stroke="#a855f7" strokeWidth="2.5" />
+                </svg>
+                <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.8)' }}>Inheritances (Thick Solid)</span>
+              </div>
+            </div>
+          </div>
         </div>
 
-        {/* System Overview tracker */}
-        {viewMode === 'system' && (
-          <SystemMinimap
-            subsystems={subsystems}
-            expandedSubsystemId={expandedSubsystemId}
-            onSubsystemClick={(id) => {
-              const pos = layoutNodes.find(n => n.id === `subsystem:${id}`);
-              if (pos) {
-                expandSubsystem(id);
-                zoomToNode(pos.x + pos.width / 2, pos.y + pos.height / 2, 0.85);
-              }
-            }}
-          />
-        )}
-
-        {/* Loading / Error states overlays */}
+        {/* Side Detail Inspector Panels */}
         <AnimatePresence>
-          {loading && <GraphLoadingOverlay key="loading" />}
-        </AnimatePresence>
+          {(selectedSubsystem || selectedFileNode || selectedEntityNode || selectedMockNode || selectedEdge) && (
+            <motion.div
+              key="details-drawer"
+              initial={{ x: '100%' }}
+              animate={{ x: isDetailsCollapsed ? '100%' : '0%' }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 26, stiffness: 190 }}
+              style={{ 
+                width: isDetailsExpanded ? '650px' : '380px',
+                transition: 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+              }}
+              className="absolute right-0 top-0 h-full z-20"
+            >
+              {/* Pull-tab handle for sliding in/out */}
+              <button
+                onClick={() => setIsDetailsCollapsed(prev => !prev)}
+                style={{
+                  position: 'absolute',
+                  left: isDetailsCollapsed ? '-20px' : '-20px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  width: '20px',
+                  height: '64px',
+                  background: 'rgba(10, 14, 28, 0.95)',
+                  backdropFilter: 'blur(22px)',
+                  borderLeft: '1px solid rgba(255,255,255,0.08)',
+                  borderTop: '1px solid rgba(255,255,255,0.08)',
+                  borderBottom: '1px solid rgba(255,255,255,0.08)',
+                  borderRadius: '8px 0 0 8px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'rgba(148,163,184,0.65)',
+                  cursor: 'pointer',
+                  boxShadow: '-4px 0 16px rgba(0,0,0,0.5)',
+                  transition: 'all 0.15s ease',
+                  pointerEvents: 'auto',
+                  zIndex: 30,
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.color = '#ff6b1a';
+                  e.currentTarget.style.width = '24px';
+                  e.currentTarget.style.left = '-24px';
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.color = 'rgba(148,163,184,0.65)';
+                  e.currentTarget.style.width = '20px';
+                  e.currentTarget.style.left = '-20px';
+                }}
+                title={isDetailsCollapsed ? "Expand sidebar details" : "Collapse sidebar details"}
+              >
+                {isDetailsCollapsed ? <ChevronLeft size={12} /> : <ChevronRight size={12} />}
+              </button>
 
-        <AnimatePresence>
-          {!loading && !error && rawNodes.length === 0 && (
-            <GraphEmptyState key="empty" />
+              {selectedSubsystem && !selectedFileId && (
+                <SubsystemDetailsPanel
+                  subsystem={selectedSubsystem}
+                  onClose={clearSelection}
+                />
+              )}
+              {selectedFileNode && (
+                <NodeDetailsPanel
+                  node={selectedFileNode}
+                  onClose={clearSelection}
+                  onExploreNode={handleExploreNode}
+                  rawEdges={rawEdges}
+                  rawNodes={rawNodes}
+                  isActive={selectedFileId === navPath[navPath.length - 1]?.id}
+                  showSiblings={showSiblings}
+                  onToggleSiblings={() => setShowSiblings(prev => !prev)}
+                  latestCommit={getLatestCommitForNode(selectedFileNode)}
+                  commits={getCommitsForNode(selectedFileNode)}
+                  onCollapse={() => setIsDetailsCollapsed(true)}
+                  isExpanded={isDetailsExpanded}
+                  onToggleExpand={() => setIsDetailsExpanded(prev => !prev)}
+                />
+              )}
+              {selectedEntityNode && (
+                <NodeDetailsPanel
+                  node={selectedEntityNode}
+                  onClose={() => {
+                    setSelectedEntityId(null);
+                  }}
+                  onExploreNode={handleExploreNode}
+                  rawEdges={rawEdges}
+                  rawNodes={rawNodes}
+                  isActive={selectedEntityId === navPath[navPath.length - 1]?.id}
+                  showSiblings={showSiblings}
+                  onToggleSiblings={() => setShowSiblings(prev => !prev)}
+                  latestCommit={getLatestCommitForNode(selectedEntityNode)}
+                  commits={getCommitsForNode(selectedEntityNode)}
+                  onCollapse={() => setIsDetailsCollapsed(true)}
+                  isExpanded={isDetailsExpanded}
+                  onToggleExpand={() => setIsDetailsExpanded(prev => !prev)}
+                />
+              )}
+              {selectedMockNode && !selectedFileNode && (
+                <CodeInspector
+                  node={selectedMockNode}
+                  onClose={clearSelection}
+                />
+              )}
+              {selectedEdge && (
+                <RelationshipDetailsPanel
+                  edge={selectedEdge}
+                  onClose={() => setSelectedEdge(null)}
+                  isExpanded={isDetailsExpanded}
+                  onToggleExpand={() => setIsDetailsExpanded(prev => !prev)}
+                />
+              )}
+            </motion.div>
           )}
         </AnimatePresence>
-
-        <AnimatePresence>
-          {!loading && !!error && (
-            <GraphErrorState key="error" message={error} onRetry={refetch} />
-          )}
-        </AnimatePresence>
-
-        <ReactFlow
-          nodes={spotlightNodes}
-          edges={spotlightEdges}
-          onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
-          onNodeClick={onNodeClick}
-          onEdgeMouseEnter={(_, edge) => setHoveredEdge(edge)}
-          onEdgeMouseLeave={() => setHoveredEdge(null)}
-          onPaneClick={() => { clearSelection(); resetCamera(); }}
-          nodeTypes={nodeTypes}
-          edgeTypes={edgeTypes}
-          fitView
-          fitViewOptions={{ padding: 0.25 }}
-          minZoom={0.15}
-          maxZoom={2.5}
-          proOptions={{ hideAttribution: true }}
-          style={{ background: 'transparent' }}
-        >
-          <Controls className="bottom-6 left-6" />
-          <Background variant={BackgroundVariant.Dots} gap={24} size={1} color="rgba(255,255,255,0.03)" />
-        </ReactFlow>
       </div>
-
-      {/* Side Detail Inspector Panels */}
-      <AnimatePresence>
-        {selectedSubsystem && !selectedFileId && (
-          <div key="subsystem-panel" className="absolute right-0 top-0 h-full w-75 z-20">
-            <SubsystemDetailsPanel
-              subsystem={selectedSubsystem}
-              onClose={clearSelection}
-            />
-          </div>
-        )}
-        {selectedFileNode && (
-          <div key="real-panel" className="absolute right-0 top-0 h-full w-75 z-20">
-            <NodeDetailsPanel
-              node={selectedFileNode}
-              onClose={clearSelection}
-            />
-          </div>
-        )}
-        {selectedMockNode && !selectedFileNode && (
-          <div key="mock-panel" className="absolute right-0 top-0 h-full w-80 z-20">
-            <CodeInspector
-              node={selectedMockNode}
-              onClose={clearSelection}
-            />
-          </div>
-        )}
-      </AnimatePresence>
-    </div>
+    </ExplorerContext.Provider>
   );
 };
 

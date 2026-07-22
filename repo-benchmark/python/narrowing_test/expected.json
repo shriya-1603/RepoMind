@@ -1,0 +1,36 @@
+{
+  "contains": [
+    {"source": "models.py", "target": "Client", "type": "class"},
+    {"source": "models.py", "target": "send", "type": "function"},
+    {"source": "models.py", "target": "OtherClient", "type": "class"},
+    {"source": "models.py", "target": "run", "type": "function"},
+    {"source": "models.py", "target": "Session", "type": "class"},
+    {"source": "models.py", "target": "send", "type": "function"},
+    {"source": "models.py", "target": "ContextManagerWithAnnotation", "type": "class"},
+    {"source": "models.py", "target": "__enter__", "type": "function"},
+    {"source": "models.py", "target": "__exit__", "type": "function"},
+    {"source": "models.py", "target": "ContextManagerNoAnnotation", "type": "class"},
+    {"source": "models.py", "target": "__enter__", "type": "function"},
+    {"source": "models.py", "target": "__exit__", "type": "function"},
+    {"source": "models.py", "target": "ContextManagerAbsentEnter", "type": "class"},
+    {"source": "models.py", "target": "send", "type": "function"},
+    {"source": "models.py", "target": "__exit__", "type": "function"},
+    {"source": "main.py", "target": "App", "type": "class"},
+    {"source": "main.py", "target": "execute", "type": "function"}
+  ],
+  "imports": [
+    {"source": "main.py", "target": "models.py"}
+  ],
+  "calls": [
+    {"source": "execute", "target": "models.py:send"},
+    {"source": "execute", "target": "models.py:send"},
+    {"source": "execute", "target": "models.py:send"},
+    {"source": "execute", "target": "models.py:send"}
+  ],
+  "inherits": [],
+  "unresolved_calls": [
+    {"source": "execute", "name": "send"},
+    {"source": "execute", "name": "run"},
+    {"source": "execute", "name": "send"}
+  ]
+}

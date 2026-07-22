@@ -1,0 +1,15 @@
+{
+  "contains": [
+    {"source": "a.py", "target": "run", "type": "function"},
+    {"source": "b.py", "target": "run", "type": "function"},
+    {"source": "main.py", "target": "entry", "type": "function"}
+  ],
+  "imports": [
+    {"source": "main.py", "target": "a.py"}
+  ],
+  "calls": [
+    {"source": "entry", "target": "a.py:run"}
+  ],
+  "inherits": [],
+  "unresolved_calls": []
+}

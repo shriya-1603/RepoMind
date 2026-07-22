@@ -50,7 +50,6 @@ export const useExplorerLayout = (
 
     const list: Subsystem[] = [];
     Array.from(subMap.entries()).forEach(([name, fIds]) => {
-      // Find files of highest dependency degree for critical and entry points
       const blockFiles = nodes.filter(n => fIds.includes(n.id));
       const entryFiles = blockFiles
         .filter(n => (n.metadata.imports_count || 0) < 3)
@@ -62,7 +61,6 @@ export const useExplorerLayout = (
         .slice(0, 3)
         .map(n => n.id);
 
-      // Sum up functions/classes metrics
       let totalFunctions = 0;
       let totalClasses = 0;
       blockFiles.forEach(f => {
@@ -77,8 +75,8 @@ export const useExplorerLayout = (
         fileIds: fIds,
         entryFiles,
         criticalFiles,
-        dependencies: [], // Inferred below
-        incomingDependencies: [], // Inferred below
+        dependencies: [],
+        incomingDependencies: [],
         risk: criticalFiles.length > 1 ? 'high' : 'medium',
         metrics: {
           files: fIds.length,
@@ -88,7 +86,7 @@ export const useExplorerLayout = (
       });
     });
 
-    // Compute subsystem dependencies based on cross-subsystem file edges
+    // Compute subsystem dependencies
     list.forEach(sub => {
       const otherDeps = new Set<string>();
       sub.fileIds.forEach(fId => {
@@ -113,15 +111,13 @@ export const useExplorerLayout = (
     return list;
   }, [nodes, edges]);
 
-  // 2. Compute dynamic positioning
+  // 2. Compute dynamic grid layout positioning
   const layoutNodes = useMemo<PositionedNode[]>(() => {
     const positioned: PositionedNode[] = [];
-    const blockSpacingX = 400;
-    const blockSpacingY = 320;
+    const blockSpacingX = 680;
+    const blockSpacingY = 480;
 
-    // Lay out subsystem blocks dynamically in a simple layered hierarchy based on dependency sorting
     const sortedSubsystems = [...subsystems].sort((a, b) => {
-      // Put blocks with no dependencies (config/API) at top
       return a.dependencies.length - b.dependencies.length;
     });
 
@@ -131,15 +127,20 @@ export const useExplorerLayout = (
       const subX = col * blockSpacingX + 100;
       const subY = row * blockSpacingY + 100;
 
-      // Base Subsystem block size scales with importance (number of files/functions)
-      const baseWidth = 260 + Math.min(sub.fileIds.length * 10, 80);
-      const baseHeight = 160 + Math.min(sub.metrics.functions * 2, 80);
+      const baseWidth = 280 + Math.min(sub.fileIds.length * 8, 80);
+      const baseHeight = 160 + Math.min(sub.metrics.functions * 1.5, 80);
 
-      // Determine size of block based on whether it is expanded
       const isExpanded = expandedSubsystemId === sub.id;
-      const expandedWidth = Math.max(baseWidth, 420);
-      
-      // Compute rows of files (Start Here, Core, Helpers)
+
+      // File Grid Parameters (Step 3 & 4)
+      const COLS = 3;
+      const CARD_W = 180;
+      const CARD_H = 70;
+      const GAP_X = 24;
+      const GAP_Y = 20;
+      const padding = 24;
+      const headerOffset = 130;
+
       const childFiles = nodes.filter(n => sub.fileIds.includes(n.id));
       const entryNodeIds = sub.entryFiles;
       const criticalNodeIds = sub.criticalFiles;
@@ -152,9 +153,16 @@ export const useExplorerLayout = (
         return { node: f, role };
       });
 
-      const expandedHeight = isExpanded
-        ? baseHeight + Math.ceil(childFiles.length / 2) * 90 + 60
-        : baseHeight;
+      console.log("=== SUBSYSTEM LAYOUT TRACE ===", {
+        subsystem: sub.id,
+        expandedSubsystemId,
+        isExpanded,
+        fileCount: categorizedFiles.length
+      });
+
+      const rowsCount = Math.max(Math.ceil(childFiles.length / COLS), 1);
+      const expandedWidth = COLS * CARD_W + (COLS - 1) * GAP_X + padding * 2;
+      const expandedHeight = rowsCount * CARD_H + (rowsCount - 1) * GAP_Y + headerOffset + padding * 2;
 
       positioned.push({
         id: `subsystem:${sub.id}`,
@@ -162,33 +170,28 @@ export const useExplorerLayout = (
         x: subX,
         y: subY,
         width: isExpanded ? expandedWidth : baseWidth,
-        height: expandedHeight,
+        height: isExpanded ? expandedHeight : baseHeight,
       });
 
-      // If expanded, lay out children inside in clean segmented rows (Start Here/Core/Helpers)
+      // If expanded, lay out children in a clean grid
       if (isExpanded) {
-        let fileIndex = 0;
-        const gridCols = 2;
-        const startOffsetElementY = 130;
+        categorizedFiles.forEach((fileObj, index) => {
+          const colIdx = index % COLS;
+          const rowIdx = Math.floor(index / COLS);
 
-        categorizedFiles.forEach(fileObj => {
-          const colIdx = fileIndex % gridCols;
-          const rowIdx = Math.floor(fileIndex / gridCols);
-          const fileNodeX = subX + 25 + colIdx * 180;
-          const fileNodeY = subY + startOffsetElementY + rowIdx * 80;
+          const fileNodeX = subX + padding + colIdx * (CARD_W + GAP_X);
+          const fileNodeY = subY + headerOffset + rowIdx * (CARD_H + GAP_Y);
 
           positioned.push({
             id: fileObj.node.id,
             type: 'realNode',
             x: fileNodeX,
             y: fileNodeY,
-            width: 160,
-            height: 65,
+            width: CARD_W,
+            height: CARD_H,
             subsystemId: sub.id,
             role: fileObj.role,
           });
-
-          fileIndex++;
         });
       }
     });

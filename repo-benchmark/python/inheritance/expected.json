@@ -1,0 +1,13 @@
+{
+  "contains": [
+    {"source": "models.py", "target": "Animal", "type": "class"},
+    {"source": "models.py", "target": "Dog", "type": "class"},
+    {"source": "models.py", "target": "speak", "type": "function"}
+  ],
+  "imports": [],
+  "calls": [],
+  "inherits": [
+    {"source": "Dog", "target": "Animal"}
+  ],
+  "unresolved_calls": []
+}

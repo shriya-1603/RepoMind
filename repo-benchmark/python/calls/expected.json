@@ -1,0 +1,16 @@
+{
+  "contains": [
+    {"source": "math_utils.py", "target": "double", "type": "function"},
+    {"source": "math_utils.py", "target": "quad", "type": "function"},
+    {"source": "main.py", "target": "run_calc", "type": "function"}
+  ],
+  "imports": [
+    {"source": "main.py", "target": "math_utils.py"}
+  ],
+  "calls": [
+    {"source": "quad", "target": "double"},
+    {"source": "run_calc", "target": "quad"}
+  ],
+  "inherits": [],
+  "unresolved_calls": []
+}

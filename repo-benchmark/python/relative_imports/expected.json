@@ -1,0 +1,14 @@
+{
+  "contains": [
+    {"source": "pkg/utils.py", "target": "format_msg", "type": "function"},
+    {"source": "pkg/main.py", "target": "run", "type": "function"}
+  ],
+  "imports": [
+    {"source": "pkg/main.py", "target": "pkg/utils.py"}
+  ],
+  "calls": [
+    {"source": "run", "target": "format_msg"}
+  ],
+  "inherits": [],
+  "unresolved_calls": []
+}

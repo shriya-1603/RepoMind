@@ -1,0 +1,14 @@
+{
+  "contains": [
+    {"source": "utils.py", "target": "process", "type": "function"},
+    {"source": "main.py", "target": "entry", "type": "function"}
+  ],
+  "imports": [
+    {"source": "main.py", "target": "utils.py"}
+  ],
+  "calls": [],
+  "inherits": [],
+  "unresolved_calls": [
+    {"source": "entry", "name": "process"}
+  ]
+}

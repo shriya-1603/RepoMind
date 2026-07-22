@@ -3,7 +3,7 @@ import { NavLink, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard, GitBranch, Search, Zap, Bot,
-  ChevronLeft, ChevronRight, Settings, Cpu, Menu,
+  ChevronLeft, ChevronRight, Settings, Code2, Menu,
 } from 'lucide-react';
 import CommandPalette from './CommandPalette';
 import AmbientBackground from './AmbientBackground';
@@ -113,9 +113,9 @@ const RepositoryPresenceLayer: React.FC<{
         <div
           className="w-6 h-6 rounded-md flex items-center justify-center text-[9px] font-bold flex-shrink-0"
           style={{
-            background: isActive ? 'rgba(255, 69, 0, 0.12)' : 'rgba(255,255,255,0.03)',
-            color: isActive ? '#FF4500' : '#374151',
-            border: isActive ? '1px solid rgba(255, 69, 0, 0.22)' : '1px solid rgba(255,255,255,0.12)',
+            background: isActive ? 'var(--accent-dim)' : 'rgba(255,255,255,0.03)',
+            color: isActive ? 'var(--accent)' : '#374151',
+            border: isActive ? '1px solid var(--accent-border)' : '1px solid rgba(255,255,255,0.12)',
           }}
         >
           {isActive && repoName ? repoName[0].toUpperCase() : '—'}
@@ -153,9 +153,9 @@ const RepositoryPresenceLayer: React.FC<{
               <span
                 className="text-[8px] font-mono px-1.5 py-0.5 rounded flex-shrink-0 mt-0.5"
                 style={{
-                  background: source === 'neo4j' ? 'rgba(255, 69, 0, 0.12)' : 'rgba(255,255,255,0.04)',
-                  color:      source === 'neo4j' ? '#FF4500' : '#374151',
-                  border:     source === 'neo4j' ? '1px solid rgba(255, 69, 0, 0.22)' : '1px solid rgba(255,255,255,0.12)',
+                  background: source === 'neo4j' ? 'var(--accent-dim)' : 'rgba(255,255,255,0.04)',
+                  color:      source === 'neo4j' ? 'var(--accent-text)' : '#374151',
+                  border:     source === 'neo4j' ? '1px solid var(--accent-border)' : '1px solid rgba(255,255,255,0.12)',
                 }}
               >
                 {source === 'neo4j' ? 'neo4j' : 'local'}
@@ -185,7 +185,7 @@ const RepositoryPresenceLayer: React.FC<{
               <div className="flex items-center gap-1.5">
                 <div
                   className="w-1.5 h-1.5 rounded-full animate-pulse flex-shrink-0"
-                  style={{ background: '#FF4500' }}
+                  style={{ background: 'var(--accent)' }}
                 />
                 <span className="text-[9px] font-mono" style={{ color: 'var(--text-tertiary)' }}>
                   Loading context…
@@ -259,9 +259,9 @@ const NavItem: React.FC<NavItemProps> = ({
               transition={{ duration: 0.12 }}
               className="text-[9px] font-mono px-1.5 py-0.5 rounded flex-shrink-0"
               style={{
-                background: 'rgba(255, 69, 0, 0.12)',
-                border: '1px solid rgba(255, 69, 0, 0.22)',
-                color: '#FF4500',
+                background: 'var(--accent-dim)',
+                border: '1px solid var(--accent-border)',
+                color: 'var(--accent-text)',
               }}
             >
               ⌘{shortcut}
@@ -308,35 +308,15 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     >
       {/* Logo */}
       <div
-        className="flex items-center gap-2.5 px-4 py-4"
-        style={{ borderBottom: '1px solid rgba(255,255,255,0.12)' }}
+        className={`flex items-center py-4 ${collapsed && !mobile ? 'justify-center px-2' : 'px-5'}`}
+        style={{ borderBottom: '1px solid rgba(255,255,255,0.12)', minHeight: '57px' }}
       >
-        <div
-          className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
-          style={{
-            background: 'rgba(255, 69, 0, 0.12)',
-            border: '1px solid rgba(255, 69, 0, 0.22)',
-          }}
+        <span
+          className="font-semibold text-[15px] text-white select-none whitespace-nowrap"
+          style={{ letterSpacing: '-0.025em' }}
         >
-          <Cpu size={13} style={{ color: '#FF4500' }} />
-        </div>
-        <AnimatePresence>
-          {(!collapsed || mobile) && (
-            <motion.div
-              initial={{ opacity: 0, x: -8 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -8 }}
-              transition={{ duration: 0.18 }}
-            >
-              <span
-                className="font-semibold text-[15px] text-white"
-                style={{ letterSpacing: '-0.025em' }}
-              >
-                RepoMind
-              </span>
-            </motion.div>
-          )}
-        </AnimatePresence>
+          {collapsed && !mobile ? "</>" : "</> RepoMind"}
+        </span>
       </div>
 
       {/* Repository Presence Layer */}
@@ -396,7 +376,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   );
 
   return (
-    <div className="flex h-screen overflow-hidden" style={{ background: '#060606' }}>
+    <div className="flex h-screen overflow-hidden" style={{ background: 'var(--surface-0)' }}>
       {/* Ambient background — behind everything */}
       <AmbientBackground />
 
@@ -437,8 +417,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         <header
           className="flex items-center justify-between px-4 md:px-5 py-3 flex-shrink-0"
           style={{
-            borderBottom: '1px solid rgba(255,255,255,0.12)',
-            background: '#000000',
+            borderBottom: '1px solid rgba(255,255,255,0.08)',
+            background: 'rgba(4,5,10,0.5)',
             backdropFilter: 'blur(12px)',
           }}
         >

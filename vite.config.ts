@@ -23,6 +23,7 @@ export default defineConfig({
     },
   },
   server: {
+    port: 5174,
     proxy: {
       '/analyze-repo': {
         target: 'http://localhost:8000',

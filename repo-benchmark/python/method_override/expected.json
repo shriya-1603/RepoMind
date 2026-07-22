@@ -1,0 +1,20 @@
+{
+  "contains": [
+    {"source": "base.py", "target": "Parent", "type": "class"},
+    {"source": "base.py", "target": "run", "type": "function"},
+    {"source": "derived.py", "target": "Child", "type": "class"},
+    {"source": "derived.py", "target": "run", "type": "function"},
+    {"source": "main.py", "target": "execute", "type": "function"}
+  ],
+  "imports": [
+    {"source": "derived.py", "target": "base.py"},
+    {"source": "main.py", "target": "derived.py"}
+  ],
+  "calls": [
+    {"source": "execute", "target": "derived.py:run"}
+  ],
+  "inherits": [
+    {"source": "Child", "target": "Parent"}
+  ],
+  "unresolved_calls": []
+}

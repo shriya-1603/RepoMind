@@ -1,7 +1,8 @@
-import React, { memo } from 'react';
+import React, { memo, useContext } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Layers, FolderCode, ShieldAlert, ChevronDown, ChevronUp } from 'lucide-react';
 import type { NodeProps } from '@xyflow/react';
+import { ExplorerContext } from '../contexts/ExplorerContext';
 
 export interface SubsystemNodeData {
   label: string;
@@ -14,13 +15,15 @@ export interface SubsystemNodeData {
   risk: 'low' | 'medium' | 'high';
   isExpanded?: boolean;
   opacity?: number;
-  onExpandToggle?: (id: string) => void;
 }
 
 const SubsystemNode: React.FC<NodeProps> = memo(({ data }) => {
   const nodeData = data as unknown as SubsystemNodeData;
+  console.log("SubsystemNode rendered", nodeData.id);
   const isExpanded = !!nodeData.isExpanded;
   const opacity = nodeData.opacity !== undefined ? nodeData.opacity : 1;
+
+  const explorer = useContext(ExplorerContext);
 
   const riskColors = {
     low: '#10b981',
@@ -31,6 +34,27 @@ const SubsystemNode: React.FC<NodeProps> = memo(({ data }) => {
   const borderGlow = isExpanded
     ? '0 0 25px rgba(255, 107, 26, 0.25), 0 4px 20px rgba(0,0,0,0.6)'
     : '0 4px 16px rgba(0,0,0,0.3)';
+
+  const handleToggle = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    console.log("CLICKED", nodeData.id);
+    if (!explorer) {
+      console.log("ExplorerContext is null");
+      return;
+    }
+    if (isExpanded) {
+      console.log("Calling collapseSubsystem");
+      explorer.collapseSubsystem();
+      explorer.resetCamera();
+    } else {
+      console.log("Calling expandSubsystem", nodeData.id);
+      explorer.expandSubsystem(nodeData.id);
+      const pos = explorer.layoutNodes.find(n => n.id === `subsystem:${nodeData.id}`);
+      if (pos) {
+        explorer.zoomToNode(pos.x + pos.width / 2, pos.y + pos.height / 2, 0.85);
+      }
+    }
+  };
 
   return (
     <div
@@ -79,10 +103,8 @@ const SubsystemNode: React.FC<NodeProps> = memo(({ data }) => {
 
           <button
             onClick={(e) => {
-              e.stopPropagation();
-              if (nodeData.onExpandToggle) {
-                nodeData.onExpandToggle(nodeData.id);
-              }
+              console.log("BUTTON CLICK EVENT", nodeData.id);
+              handleToggle(e);
             }}
             className="w-6 h-6 rounded-lg bg-slate-900/60 border border-white/5 flex items-center justify-center text-slate-400 hover:text-slate-200 transition-colors ml-auto active:scale-95"
             title={isExpanded ? 'Zoom out of subsystem' : 'Zoom into subsystem'}
@@ -108,7 +130,7 @@ const SubsystemNode: React.FC<NodeProps> = memo(({ data }) => {
         )}
       </div>
 
-      {/* Metrics Footer (Only visible when collapsed to keep cards clean) */}
+      {/* Metrics Footer */}
       {!isExpanded && (
         <div className="flex items-center justify-between border-t border-white/5 pt-3 mt-4 text-[9px] font-mono text-slate-500">
           <div className="flex items-center gap-3">

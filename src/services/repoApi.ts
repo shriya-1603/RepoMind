@@ -106,6 +106,7 @@ export interface RealGraphEdge {
   source: string;
   target: string;
   type: string;
+  properties?: Record<string, any>;
 }
 
 export interface RealGraphResponse {

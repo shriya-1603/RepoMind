@@ -1,0 +1,22 @@
+{
+  "contains": [
+    {"source": "base.py", "target": "my_decorator", "type": "function"},
+    {"source": "base.py", "target": "wrapper", "type": "function"},
+    {"source": "base.py", "target": "Parent", "type": "class"},
+    {"source": "base.py", "target": "greet", "type": "function"},
+    {"source": "base.py", "target": "static_method", "type": "function"},
+    {"source": "base.py", "target": "class_method", "type": "function"},
+    {"source": "derived.py", "target": "Child", "type": "class"},
+    {"source": "derived.py", "target": "greet", "type": "function"}
+  ],
+  "imports": [
+    {"source": "derived.py", "target": "base.py"}
+  ],
+  "calls": [
+    {"source": "greet", "target": "greet"}
+  ],
+  "inherits": [
+    {"source": "Child", "target": "Parent"}
+  ],
+  "unresolved_calls": []
+}

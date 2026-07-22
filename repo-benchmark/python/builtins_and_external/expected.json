@@ -1,0 +1,9 @@
+{
+  "contains": [
+    {"source": "main.py", "target": "do_work", "type": "function"}
+  ],
+  "imports": [],
+  "calls": [],
+  "inherits": [],
+  "unresolved_calls": []
+}

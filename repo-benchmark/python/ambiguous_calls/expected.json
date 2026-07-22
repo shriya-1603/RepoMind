@@ -1,0 +1,14 @@
+{
+  "contains": [
+    {"source": "models.py", "target": "User", "type": "class"},
+    {"source": "models.py", "target": "Product", "type": "class"},
+    {"source": "models.py", "target": "save", "type": "function"},
+    {"source": "main.py", "target": "persist", "type": "function"}
+  ],
+  "imports": [],
+  "calls": [],
+  "inherits": [],
+  "unresolved_calls": [
+    {"source": "persist", "name": "save"}
+  ]
+}

@@ -1,23 +1,76 @@
 import React, { memo } from 'react';
-import { getBezierPath, BaseEdge } from '@xyflow/react';
+import { BaseEdge } from '@xyflow/react';
 import type { EdgeProps } from '@xyflow/react';
 
 const CustomEdge: React.FC<EdgeProps> = memo(({
   id, sourceX, sourceY, targetX, targetY,
-  sourcePosition, targetPosition, data, selected,
+  data, selected,
 }) => {
-  const [edgePath] = getBezierPath({
-    sourceX, sourceY, sourcePosition,
-    targetX, targetY, targetPosition,
-  });
-
   const isHighlighted = selected || !!data?.isHighlighted;
   const opacity = data?.opacity !== undefined ? data.opacity : 1;
-  const isExecutionFlow = String(data?.label).toLowerCase().includes('call') || String(data?.label).toLowerCase().includes('flow');
 
-  // Constrain visual taxonomy: gray for static imports, orange for dynamic call flows
-  const strokeColor = isExecutionFlow ? '#f97316' : '#475569';
-  const strokeWidth = isHighlighted ? 2.5 : 1;
+  const depType = String(data?.type || data?.label || '').toUpperCase();
+  const confidence = String(data?.properties?.confidence || '').toUpperCase();
+  const resolution = String(data?.properties?.resolution_method || '').toUpperCase();
+
+  let strokeColor = '#475569'; // default slate-600
+  let strokeWidth = isHighlighted ? 2.5 : 1.25;
+  let strokeDasharray = 'none';
+  let isAnimated = false;
+
+  // Visual Taxonomy Configuration
+  if (depType.includes('CONTAINS')) {
+    // CONTAINS: thin dashed/dotted structural edge
+    strokeColor = '#475569';
+    strokeDasharray = '2 2';
+    strokeWidth = 1;
+  } else if (depType.includes('PROJECTED_DEPENDENCY') || depType === 'PROJECTED_DEPENDENCY') {
+    // PROJECTED_DEPENDENCY: dashed slate edge (Objective: never looks identical to FILE_IMPORTS_FILE)
+    strokeColor = '#94a3b8';
+    strokeDasharray = '4 4';
+    strokeWidth = isHighlighted ? 2.5 : 1.25;
+  } else if (depType.includes('IMPORT') || depType === 'DEPENDS' || depType === 'DEPENDENCY') {
+    // FILE_IMPORTS_FILE: solid blue dependency edge
+    strokeColor = '#3b82f6';
+    strokeWidth = isHighlighted ? 2.5 : 1.25;
+    strokeDasharray = 'none';
+  } else if (depType.includes('CALL')) {
+    if (confidence === 'NONE' || resolution === 'UNRESOLVED' || depType.includes('UNRESOLVED')) {
+      // UNRESOLVED_MEMBER_CALL: dotted visually muted unresolved edge
+      strokeColor = '#64748b';
+      strokeDasharray = '1 4';
+      strokeWidth = 1.25;
+      isAnimated = false;
+    } else {
+      // deterministic FUNCTION_CALLS_FUNCTION: solid orange call edge
+      strokeColor = '#f97316';
+      strokeWidth = isHighlighted ? 2.5 : 1.25;
+      strokeDasharray = 'none';
+      isAnimated = true;
+    }
+  } else if (depType.includes('INHERIT') || depType.includes('EXTEND')) {
+    strokeColor = '#a855f7'; // purple inheritance path
+    strokeWidth = isHighlighted ? 4 : 2.5;
+  } else if (depType.includes('DYNAMIC') || depType.includes('ASYNC')) {
+    strokeColor = '#10b981'; // green dashed dynamic path
+    strokeDasharray = '5 5';
+    isAnimated = true;
+  }
+
+  // Calculate direct organic bow curve (Direct line with gentle middle quadratic arc)
+  const dx = targetX - sourceX;
+  const dy = targetY - sourceY;
+  const mx = (sourceX + targetX) / 2;
+  const my = (sourceY + targetY) / 2;
+
+  // Gentle bend offset: perpendicular vector scaled by 6% of length
+  const ox = -dy * 0.06;
+  const oy = dx * 0.06;
+
+  const cx = mx + ox;
+  const cy = my + oy;
+
+  const edgePath = `M ${sourceX} ${sourceY} Q ${cx} ${cy} ${targetX} ${targetY}`;
 
   return (
     <>
@@ -26,9 +79,9 @@ const CustomEdge: React.FC<EdgeProps> = memo(({
         <path
           d={edgePath}
           fill="none"
-          stroke={isExecutionFlow ? 'rgba(249,115,22,0.25)' : 'rgba(71,85,105,0.25)'}
-          strokeWidth={8}
-          style={{ filter: 'blur(4px)', opacity }}
+          stroke={strokeColor}
+          strokeWidth={strokeWidth + 6}
+          style={{ filter: 'blur(4px)', opacity: opacity * 0.3 }}
         />
       )}
 
@@ -38,27 +91,27 @@ const CustomEdge: React.FC<EdgeProps> = memo(({
         style={{
           stroke: strokeColor,
           strokeWidth,
-          strokeDasharray: isExecutionFlow ? '4 4' : 'none',
+          strokeDasharray,
           opacity,
           transition: 'opacity 0.25s ease, stroke-width 0.25s ease',
         }}
         markerEnd={`url(#arrow-${isHighlighted ? 'selected' : 'default'})`}
       />
 
-      {/* Animated particle on execution flows */}
-      {isExecutionFlow && opacity > 0.1 && (
-        <circle r="3" fill="#f97316" style={{ filter: 'drop-shadow(0 0 4px #f97316)' }}>
-          <animateMotion dur="1.5s" repeatCount="indefinite" path={edgePath} />
+      {/* Animated particle flow */}
+      {isAnimated && opacity > 0.2 && (
+        <circle r="3" fill={strokeColor} style={{ filter: `drop-shadow(0 0 4px ${strokeColor})` }}>
+          <animateMotion dur="1.8s" repeatCount="indefinite" path={edgePath} />
         </circle>
       )}
 
       {/* SVG Arrow Defs */}
       <defs>
-        <marker id="arrow-default" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
-          <path d="M0,0 L0,6 L8,3 z" fill="#475569" />
+        <marker id="arrow-default" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+          <path d="M0,0 L6,3 L0,6 L1.5,3 z" fill="#475569" />
         </marker>
-        <marker id="arrow-selected" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
-          <path d="M0,0 L0,6 L8,3 z" fill="#f97316" />
+        <marker id="arrow-selected" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+          <path d="M0,0 L6,3 L0,6 L1.5,3 z" fill="#3b82f6" />
         </marker>
       </defs>
     </>

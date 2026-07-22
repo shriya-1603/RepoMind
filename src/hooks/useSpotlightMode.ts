@@ -7,41 +7,28 @@ export const useSpotlightMode = (
   selectedFileId: string | null,
   expandedSubsystemId: string | null
 ) => {
-  // Compute one-hop and two-hop connection sets for spotlight focus mode
   const spotlightSet = useMemo(() => {
-    const oneHop = new Set<string>();
-    const twoHop = new Set<string>();
-    if (!selectedFileId) return { oneHop, twoHop };
+    const neighbors = new Set<string>();
+    if (!selectedFileId) return { neighbors };
 
-    oneHop.add(selectedFileId);
+    neighbors.add(selectedFileId);
 
-    // First hop scan
+    // One-hop neighbor scan
     flowEdges.forEach(e => {
       if (e.source === selectedFileId) {
-        oneHop.add(e.target);
+        neighbors.add(e.target);
       }
       if (e.target === selectedFileId) {
-        oneHop.add(e.source);
+        neighbors.add(e.source);
       }
     });
 
-    // Second hop scan
-    flowEdges.forEach(e => {
-      if (oneHop.has(e.source) && !oneHop.has(e.target)) {
-        twoHop.add(e.target);
-      }
-      if (oneHop.has(e.target) && !oneHop.has(e.source)) {
-        twoHop.add(e.source);
-      }
-    });
-
-    return { oneHop, twoHop };
+    return { neighbors };
   }, [selectedFileId, flowEdges]);
 
   // Map spotlight styling properties onto React Flow nodes
   const spotlightNodes = useMemo(() => {
     if (!selectedFileId) {
-      // Standard subsystem visibility dimming
       return flowNodes.map(n => {
         const isSubsystemNode = n.id.startsWith('subsystem:');
         const activeSubsystem = expandedSubsystemId ? `subsystem:${expandedSubsystemId}` : null;
@@ -49,51 +36,57 @@ export const useSpotlightMode = (
 
         if (activeSubsystem) {
           if (isSubsystemNode && n.id !== activeSubsystem) {
-            opacity = 0.2; // Dim out unrelated subsystems
+            opacity = 0.25;
           }
         }
         return {
           ...n,
+          style: {
+            ...n.style,
+            transition: 'opacity 0.3s ease',
+            opacity,
+          },
           data: {
             ...n.data,
             opacity,
             isFocused: false,
+            highlightStyle: 'none'
           },
         };
       });
     }
 
     return flowNodes.map(n => {
-      const isSubsystemNode = n.id.startsWith('subsystem:');
-      let opacity = 0.08; // Default dim level
+      const isSubsystem = n.id.startsWith('subsystem:');
+      let opacity = 0.15;
       let scale = 1;
       let isFocused = false;
+      let highlightStyle: 'selected' | 'neighbor' | 'none' = 'none';
 
-      if (isSubsystemNode) {
-        opacity = 0.15; // Dim subsystem cards slightly less than far files
-      } else if (n.id === selectedFileId) {
-        opacity = 1;
+      if (n.id === selectedFileId) {
+        opacity = 1.0;
         scale = 1.06;
         isFocused = true;
-      } else if (spotlightSet.oneHop.has(n.id)) {
-        opacity = 0.85;
-      } else if (spotlightSet.twoHop.has(n.id)) {
-        opacity = 0.45;
+        highlightStyle = 'selected';
+      } else if (spotlightSet.neighbors.has(n.id) && !isSubsystem) {
+        opacity = 0.95;
+        highlightStyle = 'neighbor';
       }
 
       return {
         ...n,
         style: {
           ...n.style,
-          transition: 'all 0.25s ease',
+          transition: 'all 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
           opacity,
           transform: `scale(${scale})`,
-          zIndex: isFocused ? 1000 : spotlightSet.oneHop.has(n.id) ? 500 : 1,
+          zIndex: isFocused ? 1000 : spotlightSet.neighbors.has(n.id) ? 500 : 1,
         },
         data: {
           ...n.data,
           opacity,
           isFocused,
+          highlightStyle
         },
       };
     });
@@ -109,17 +102,15 @@ export const useSpotlightMode = (
     }
 
     return flowEdges.map(e => {
-      let opacity = 0.08;
+      let opacity = 0.15;
       let isHighlighted = false;
 
       const isSrcSelected = e.source === selectedFileId;
       const isTgtSelected = e.target === selectedFileId;
 
       if (isSrcSelected || isTgtSelected) {
-        opacity = 0.85;
+        opacity = 1.0;
         isHighlighted = true;
-      } else if (spotlightSet.oneHop.has(e.source) && spotlightSet.oneHop.has(e.target)) {
-        opacity = 0.45;
       }
 
       return {

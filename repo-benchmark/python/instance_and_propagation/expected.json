@@ -1,0 +1,34 @@
+{
+  "contains": [
+    {"source": "models.py", "target": "UserRepository", "type": "class"},
+    {"source": "models.py", "target": "save", "type": "function"},
+    {"source": "models.py", "target": "ClientA", "type": "class"},
+    {"source": "models.py", "target": "send", "type": "function"},
+    {"source": "models.py", "target": "ClientB", "type": "class"},
+    {"source": "models.py", "target": "send", "type": "function"},
+    {"source": "factories.py", "target": "get_repository", "type": "function"},
+    {"source": "services.py", "target": "Service", "type": "class"},
+    {"source": "services.py", "target": "__init__", "type": "function"},
+    {"source": "main.py", "target": "App", "type": "class"},
+    {"source": "main.py", "target": "__init__", "type": "function"},
+    {"source": "main.py", "target": "execute", "type": "function"}
+  ],
+  "imports": [
+    {"source": "factories.py", "target": "models.py"},
+    {"source": "services.py", "target": "models.py"},
+    {"source": "main.py", "target": "models.py"},
+    {"source": "main.py", "target": "factories.py"},
+    {"source": "main.py", "target": "services.py"}
+  ],
+  "calls": [
+    {"source": "execute", "target": "models.py:save"},
+    {"source": "execute", "target": "models.py:send"},
+    {"source": "execute", "target": "models.py:save"},
+    {"source": "execute", "target": "factories.py:get_repository"}
+  ],
+  "inherits": [],
+  "unresolved_calls": [
+    {"source": "execute", "name": "send"},
+    {"source": "execute", "name": "send"}
+  ]
+}

@@ -124,13 +124,25 @@ export const useRealGraphData = (analysisId?: string | null) => {
   useEffect(() => {
     let cancelled = false;
 
-    // Clear old graph immediately to prevent cross-repository visual leakage
-    setState({ nodes: [], edges: [], source: null, loading: true, error: null, warning: null });
-
     const run = async () => {
-      // Return cached result immediately
+      // Return cached result immediately without clearing
       if (cache.current.has(effectiveId)) {
         if (!cancelled) setState(cache.current.get(effectiveId)!);
+        return;
+      }
+
+      // Only clear old graph when actually switching to a real repo (not on first mount with no id)
+      if (hasId) {
+        setState({ nodes: [], edges: [], source: null, loading: true, error: null, warning: null });
+      } else {
+        // No real repo — show mock data immediately, no fetch needed
+        const { nodes, edges } = getMockGraphData();
+        const mockState: RealGraphDataState = {
+          nodes, edges, source: 'mock', loading: false, error: null,
+          warning: 'No repository imported — showing demo graph data.'
+        };
+        cache.current.set(effectiveId, mockState);
+        if (!cancelled) setState(mockState);
         return;
       }
 

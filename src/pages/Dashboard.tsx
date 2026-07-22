@@ -209,13 +209,13 @@ const StatPill: React.FC<{
     initial={{ opacity: 0, y: 8 }}
     animate={{ opacity: 1, y: 0 }}
     transition={{ delay, duration: 0.3 }}
-    className="flex flex-col gap-1 p-4 rounded-2xl border border-[#222222] bg-[#0E0E0E]"
+    className="flex flex-col gap-1 p-4 rounded-2xl border border-white/5 bg-white/[0.015] hover:bg-white/[0.035] hover:border-white/10 transition-all"
   >
     <div className="flex items-center gap-2">
-      <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: `${color}18`, border: `1px solid ${color}28` }}>
+      <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-white/[0.03] border border-white/5">
         <Icon size={14} style={{ color }} />
       </div>
-      <span className="text-[10px] text-slate-500 uppercase tracking-widest font-mono">{label}</span>
+      <span className="text-[10px] text-[var(--text-secondary)] uppercase tracking-widest font-mono">{label}</span>
     </div>
     <div className="text-xl font-bold text-slate-100 font-mono leading-none">{value}</div>
   </motion.div>
@@ -228,7 +228,7 @@ const HealthDonut: React.FC<{
   const r = 36;
   const circ = 2 * Math.PI * r;
   const offset = circ - (score / 100) * circ;
-  const color = score >= 70 ? '#4ADE80' : score >= 45 ? '#FFB347' : '#FF6B1A';
+  const color = score >= 70 ? '#4ADE80' : score >= 45 ? 'var(--accent-gold)' : '#FF4D4D';
 
   return (
     <div className="flex items-center gap-5">
@@ -642,11 +642,11 @@ const BriefingSection: React.FC<{
   title: string;
   children: React.ReactNode;
   accent?: string;
-}> = ({ icon, title, children, accent = '#FF6B1A' }) => (
+}> = ({ icon, title, children, accent = 'var(--accent)' }) => (
   <div className="space-y-3">
     <div className="flex items-center gap-2">
       <span style={{ color: accent }}>{icon}</span>
-      <h4 className="text-[11px] uppercase tracking-widest font-mono font-bold text-[#A0A0A0]">{title}</h4>
+      <h4 className="text-[11px] uppercase tracking-widest font-mono font-bold text-[var(--text-secondary)]">{title}</h4>
     </div>
     {children}
   </div>
@@ -660,7 +660,7 @@ const EvidenceToggler: React.FC<{ evidence: string[] }> = ({ evidence }) => {
     <div className="mt-1.5">
       <button
         onClick={() => setShowEvidence(!showEvidence)}
-        className="text-[10px] font-mono text-[#FF6B1A] hover:underline flex items-center gap-1 font-semibold"
+        className="text-[10px] font-mono text-[var(--accent-text)] hover:underline flex items-center gap-1 font-semibold"
       >
         {showEvidence ? '▾ Evidence' : '▸ Evidence'}
       </button>
@@ -670,13 +670,13 @@ const EvidenceToggler: React.FC<{ evidence: string[] }> = ({ evidence }) => {
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            className="w-full flex flex-wrap gap-1.5 items-center mt-1.5 bg-[#070707] p-2 rounded-lg border border-[#1A1A1A]"
+            className="w-full flex flex-wrap gap-1.5 items-center mt-1.5 bg-white/[0.015] p-2 rounded-lg border border-white/5"
           >
-            <span className="text-[8.5px] text-[#666666] font-mono uppercase tracking-wider">Concrete Signals:</span>
+            <span className="text-[8.5px] text-[var(--text-tertiary)] font-mono uppercase tracking-wider">Concrete Signals:</span>
             {evidence.map((ev, i) => (
               <span
                 key={i}
-                className="px-1.5 py-0.5 rounded text-[8.5px] font-mono text-[#AAAAAA] bg-[#111111] border border-[#222222]"
+                className="px-1.5 py-0.5 rounded text-[8.5px] font-mono text-[var(--text-secondary)] bg-white/[0.03] border border-white/5"
               >
                 {ev}
               </span>
@@ -707,27 +707,27 @@ const AITechnicalBriefing: React.FC<{ briefing: RepositoryIntelligence }> = ({ b
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
-      className="rounded-2xl border border-[#222222] bg-[#0A0A0A] overflow-hidden"
+      className="premium-card rounded-3xl overflow-hidden"
     >
       {/* Header */}
-      <div className="px-6 py-4 border-b border-[#1A1A1A] flex items-center justify-between">
+      <div className="px-6 py-4 border-b border-white/5 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
-          <Bot size={16} className="text-[#FF6B1A]" />
-          <h3 className="font-semibold text-[#F5F5F5] text-[17px]">Repository Intelligence</h3>
-          <span className="px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-[#FF6B1A]/10 text-[#FF6B1A] border border-[#FF6B1A]/20 uppercase tracking-wider">
+          <Bot size={16} className="text-[var(--accent)]" />
+          <h3 className="font-semibold text-[var(--text-primary)] text-[17px]">Repository Intelligence</h3>
+          <span className="px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-[var(--accent-dim)] text-[var(--accent-text)] border border-[var(--accent-border)] uppercase tracking-wider">
             AI Analysis
           </span>
         </div>
         {briefing.domain && (
           <div className="flex items-center gap-2">
-            <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#1A1A1A] border border-[#2A2A2A]">
-              <Cpu size={10} className={isUnknownDomain ? 'text-[#888888]' : 'text-[#FFB347]'} />
-              <span className={`text-[10px] font-mono font-semibold ${isUnknownDomain ? 'text-[#888888]' : 'text-[#FFB347]'}`}>
+            <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/[0.04] border border-white/5">
+              <Cpu size={10} className={isUnknownDomain ? 'text-[var(--text-tertiary)]' : 'text-[var(--accent-gold)]'} />
+              <span className={`text-[10px] font-mono font-semibold ${isUnknownDomain ? 'text-[var(--text-tertiary)]' : 'text-[var(--accent-gold)]'}`}>
                 {isUnknownDomain ? 'Unknown Domain' : briefing.domain.domain}
               </span>
             </div>
             {!isUnknownDomain && (
-              <div className="hidden sm:flex items-center gap-1 text-[10px] text-[#A0A0A0] font-mono font-bold">
+              <div className="hidden sm:flex items-center gap-1 text-[10px] text-[var(--text-secondary)] font-mono font-bold">
                 <span>{getConfidenceLabel(confidencePct)} Confidence</span>
               </div>
             )}
@@ -742,11 +742,11 @@ const AITechnicalBriefing: React.FC<{ briefing: RepositoryIntelligence }> = ({ b
           <BriefingSection icon={<Target size={13} />} title="What Is This Project">
             <div className="space-y-1">
               <div className="flex items-start justify-between gap-3">
-                <p className="text-[13px] text-[#C8C8C8] leading-relaxed font-light flex-1">
+                <p className="text-[13px] text-[var(--text-primary)] leading-relaxed font-light flex-1">
                   {briefing.projectPurpose.description}
                 </p>
                 {!isUnknownDomain && typeof briefing.projectPurpose.confidence === 'number' && (
-                  <div className="flex-shrink-0 px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-[#FF6B1A]/10 text-[#FF6B1A] border border-[#FF6B1A]/20">
+                  <div className="flex-shrink-0 px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-[var(--accent-dim)] text-[var(--accent-text)] border border-[var(--accent-border)]">
                     {getConfidenceLabel(briefing.projectPurpose.confidence)} Confidence
                   </div>
                 )}
@@ -758,22 +758,22 @@ const AITechnicalBriefing: React.FC<{ briefing: RepositoryIntelligence }> = ({ b
 
         {/* ── 2. Execution Flow ──────────────────────────────────────────── */}
         {briefing.executionFlow?.length > 0 && briefing.workflowReconstructed ? (
-          <BriefingSection icon={<Workflow size={13} />} title="Execution Flow Reconstructed" accent="#FFB347">
+          <BriefingSection icon={<Workflow size={13} />} title="Execution Flow Reconstructed" accent="var(--accent-gold)">
             <div className="space-y-4">
-              <div className="flex items-center justify-between text-[11px] text-[#888888] font-mono">
+              <div className="flex items-center justify-between text-[11px] text-[var(--text-secondary)] font-mono">
                 <span>Call flow paths mapped from AST dependency graph</span>
                 {typeof briefing.workflowConfidence === 'number' && (
-                  <span className="text-[#FFB347] font-semibold">{getConfidenceLabel(briefing.workflowConfidence)} Confidence</span>
+                  <span className="text-[var(--accent-gold)] font-semibold">{getConfidenceLabel(briefing.workflowConfidence)} Confidence</span>
                 )}
               </div>
               <div className="flex flex-col gap-3">
                 {briefing.executionFlow.map((step, i) => (
-                  <div key={i} className="flex items-start gap-3 p-3 rounded-lg bg-[#0E0E0E] border border-[#1A1A1A]">
-                    <div className="flex-shrink-0 w-5 h-5 rounded-full bg-[#FFB347]/10 border border-[#FFB347]/20 flex items-center justify-center text-[9px] font-mono text-[#FFB347] font-bold">
+                  <div key={i} className="flex items-start gap-3 p-3 rounded-lg bg-white/[0.015] border border-white/5">
+                    <div className="flex-shrink-0 w-5 h-5 rounded-full bg-[var(--accent-dim)] border border-[var(--accent-border)] flex items-center justify-center text-[9px] font-mono text-[var(--accent-text)] font-bold">
                       {i + 1}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-[12px] text-[#E0E0E0] font-mono leading-relaxed">{step.step}</p>
+                      <p className="text-[12px] text-[var(--text-primary)] font-mono leading-relaxed">{step.step}</p>
                       <EvidenceToggler evidence={step.evidence} />
                     </div>
                   </div>
@@ -782,8 +782,8 @@ const AITechnicalBriefing: React.FC<{ briefing: RepositoryIntelligence }> = ({ b
             </div>
           </BriefingSection>
         ) : (
-          <BriefingSection icon={<Workflow size={13} />} title="Execution Flow Reconstructed" accent="#FFB347">
-            <div className="p-4 rounded-xl bg-[#0D0D0D] border border-[#1E1E1E] text-[12px] text-[#BBBBBB] leading-relaxed italic">
+          <BriefingSection icon={<Workflow size={13} />} title="Execution Flow Reconstructed" accent="var(--accent-gold)">
+            <div className="p-4 rounded-xl bg-white/[0.015] border border-white/5 text-[12px] text-[var(--text-secondary)] leading-relaxed italic">
               Dominant runtime path could not be reconstructed with high confidence.
             </div>
           </BriefingSection>
@@ -1168,10 +1168,10 @@ const LoadedDashboard: React.FC = () => {
   return (
     <div className="p-8 space-y-6 max-w-7xl mx-auto font-sans">
       {/* Dominant Command Center Header */}
-      <div className="p-8 rounded-2xl border border-[#222222] bg-[#0E0E0E] space-y-6">
+      <div className="p-8 premium-card rounded-3xl space-y-6">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-[40px] font-extrabold text-[#F5F5F5] font-[Syne] tracking-tight leading-none">
+            <h1 className="text-[40px] font-black text-gradient font-display tracking-tight leading-none select-none">
               {repoName ?? 'Repository Command Center'}
             </h1>
             <div className="flex items-center gap-2 mt-2 flex-wrap">
@@ -1195,17 +1195,18 @@ const LoadedDashboard: React.FC = () => {
           <div className="flex items-center gap-2">
             <motion.button
               onClick={handleRefresh}
-              whileTap={{ scale: 0.95 }}
               disabled={isLoading}
-              className="p-2.5 rounded-xl border border-[#222222] bg-[#131313] text-[#A0A0A0] hover:text-slate-200 transition-colors disabled:opacity-50"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="p-2.5 rounded-xl border border-white/10 bg-white/[0.04] text-[var(--text-secondary)] hover:text-white hover:bg-white/[0.08] hover:border-white/20 transition-all disabled:opacity-50"
             >
-              <RefreshCw size={14} className={isRefreshing ? 'animate-spin text-[#FF6B1A]' : ''} />
+              <RefreshCw size={14} className={isRefreshing ? 'animate-spin text-[var(--accent)]' : ''} />
             </motion.button>
 
             <motion.button
               onClick={() => setIsImportOpen(true)}
               whileHover={{ scale: 1.03 }}
-              className="px-3.5 py-2 text-xs rounded-xl border border-[#222222] bg-[#131313] text-[#F5F5F5] hover:text-white transition-colors"
+              className="px-3.5 py-2 text-xs rounded-xl border border-white/10 bg-white/[0.04] text-[var(--text-primary)] hover:text-white hover:bg-white/[0.08] hover:border-white/20 transition-all"
             >
               + Import New Repository
             </motion.button>
@@ -1213,7 +1214,7 @@ const LoadedDashboard: React.FC = () => {
             <motion.button
               onClick={clearActiveRepository}
               whileHover={{ scale: 1.02 }}
-              className="px-3 py-2 text-xs rounded-xl border border-[#222222] bg-[#131313] text-slate-500 hover:text-rose-400 hover:border-rose-500/30 transition-colors"
+              className="px-3 py-2 text-xs rounded-xl border border-white/10 bg-white/[0.04] text-[var(--text-tertiary)] hover:text-rose-400 hover:border-rose-500/30 transition-all"
               title="Clear active repository"
             >
               ✕ Clear
@@ -1231,20 +1232,20 @@ const LoadedDashboard: React.FC = () => {
         </div>
 
         {summary && (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 pt-6 border-t border-[#222222]">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 pt-6 border-t border-white/5">
             <div className="space-y-1">
               <span className="text-[10px] text-[#A0A0A0] uppercase tracking-wider font-mono font-bold">Health Score</span>
-              <div className="text-3xl font-black text-[#4ADE80] font-mono flex items-baseline gap-1.5">
+              <div className="text-3xl font-black text-emerald-400 font-mono flex items-baseline gap-1.5">
                 {isLoading ? '–' : (health?.score !== undefined && health?.score !== null ? health.score : 'Unavailable')}
                 {!isLoading && health?.score !== undefined && health?.score !== null && (
-                  <span className="text-[11px] text-[#A0A0A0] font-normal">/ 100</span>
+                  <span className="text-[11px] text-[var(--text-secondary)] font-normal">/ 100</span>
                 )}
               </div>
             </div>
 
             <div className="space-y-1">
               <span className="text-[10px] text-[#A0A0A0] uppercase tracking-wider font-mono font-bold">Risk Profile</span>
-              <div className="text-3xl font-black text-[#FFB347] font-mono">
+              <div className="text-3xl font-black text-[var(--accent-gold)] font-mono">
                 {isLoading ? '–' : (summary ? (summary.overallRiskScore < 30 ? 'Low' : summary.overallRiskScore < 70 ? 'Medium' : 'High') : 'Unavailable')}
               </div>
             </div>
@@ -1287,11 +1288,11 @@ const LoadedDashboard: React.FC = () => {
 
       {/* Loading skeleton */}
       {isLoading && !summary && (
-        <div className="flex flex-col items-center justify-center p-16 rounded-2xl border border-[#222222] bg-[#0E0E0E] gap-4">
-          <Loader2 size={36} className="text-[#FF6B1A] animate-spin" />
+        <div className="flex flex-col items-center justify-center p-16 rounded-3xl border border-white/5 bg-white/[0.015] gap-4">
+          <Loader2 size={36} className="text-[var(--accent)] animate-spin" />
           <div className="text-center">
-            <h3 className="text-sm font-semibold text-[#F5F5F5]">Loading repository data…</h3>
-            <p className="text-xs text-[#A0A0A0] mt-1">Fetching graph intelligence from Neo4j.</p>
+            <h3 className="text-sm font-semibold text-[var(--text-primary)]">Loading repository data…</h3>
+            <p className="text-xs text-[var(--text-secondary)] mt-1">Fetching graph intelligence from Neo4j.</p>
           </div>
         </div>
       )}
@@ -1304,12 +1305,12 @@ const LoadedDashboard: React.FC = () => {
               <AITechnicalBriefing briefing={summary.repositoryIntelligence} />
             ) : (
               /* Fallback: legacy aiSummary card */
-              <div className="p-6 rounded-2xl border border-[#222222] bg-[#0E0E0E] space-y-4">
+              <div className="p-6 glass-panel rounded-3xl space-y-4">
                 <div className="flex items-center gap-2 mb-1">
-                  <Code2 size={15} className="text-[#FF6B1A]" />
-                  <h3 className="font-semibold text-[#F5F5F5] text-[18px]">Repository Overview</h3>
+                  <Code2 size={15} className="text-[var(--accent)]" />
+                  <h3 className="font-semibold text-[var(--text-primary)] text-[18px]">Repository Overview</h3>
                 </div>
-                <p className="text-[12px] text-[#A0A0A0] leading-relaxed"
+                <p className="text-[12px] text-[var(--text-secondary)] leading-relaxed"
                   dangerouslySetInnerHTML={{
                     __html: summary.aiSummary.replace(/\*\*(.+?)\*\*/g, '<strong class="text-slate-200">$1</strong>'),
                   }}
@@ -1319,12 +1320,12 @@ const LoadedDashboard: React.FC = () => {
 
           {/* ── Stats row ──────────────────────────────────────────────── */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-            <StatPill icon={FileCode}   label="Files Parsed"  value={summary.totalFiles.toLocaleString()} color="#FF6B1A" delay={0.05} />
-            <StatPill icon={Activity}   label="Functions"     value={summary.totalFunctions.toLocaleString()} color="#FFB347" delay={0.08} />
-            <StatPill icon={Layers}     label="Classes"       value={summary.totalClasses.toLocaleString()} color="#FFB347" delay={0.11} />
-            <StatPill icon={TrendingUp} label="Imports"       value={summary.totalImports.toLocaleString()} color="#FF6B1A" delay={0.14} />
-            <StatPill icon={BarChart3}  label="Graph Nodes"   value={graphData ? graphData.nodes.length.toLocaleString() : '–'} color="#F5E8D8" delay={0.17} />
-            <StatPill icon={GitBranch}  label="Graph Edges"   value={graphData ? graphData.edges.length.toLocaleString() : '–'} color="#FF3E3E" delay={0.20} />
+            <StatPill icon={FileCode}   label="Files Parsed"  value={summary.totalFiles.toLocaleString()} color="var(--accent)" delay={0.05} />
+            <StatPill icon={Activity}   label="Functions"     value={summary.totalFunctions.toLocaleString()} color="var(--accent-text)" delay={0.08} />
+            <StatPill icon={Layers}     label="Classes"       value={summary.totalClasses.toLocaleString()} color="var(--accent-text)" delay={0.11} />
+            <StatPill icon={TrendingUp} label="Imports"       value={summary.totalImports.toLocaleString()} color="var(--accent)" delay={0.14} />
+            <StatPill icon={BarChart3}  label="Graph Nodes"   value={graphData ? graphData.nodes.length.toLocaleString() : '–'} color="var(--text-secondary)" delay={0.17} />
+            <StatPill icon={GitBranch}  label="Graph Edges"   value={graphData ? graphData.edges.length.toLocaleString() : '–'} color="var(--accent-gold)" delay={0.20} />
           </div>
 
           {/* ── Health + Complexity + Coverage row ──────────────────────── */}
