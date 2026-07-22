@@ -128,7 +128,8 @@ class GraphService:
                 f.rel_path         = item.rel_path,
                 f.functions_count  = item.functions_count,
                 f.classes_count    = item.classes_count,
-                f.imports_count    = item.imports_count
+                f.imports_count    = item.imports_count,
+                f.exists_in_current_snapshot = true
             """
             self._client.run_write_query(query, {"batch": files_batch})
 
@@ -935,7 +936,231 @@ class GraphService:
         self._batch_merge_relationships(analysis_id, "Class", "Function", "CLASS_CONTAINS_FUNCTION", class_func_rels_dedup)
         self._batch_merge_relationships(analysis_id, "File", "File", "FILE_IMPORTS_FILE", file_imports_file_rels_dedup)
 
+        # Ingest Git history if it exists
+        repo_path = parsed_output.get("repository", "")
+        if repo_path:
+            self.store_git_history(analysis_id, repo_path)
+
         logger.info("Graph stored for analysis_id=%s", analysis_id)
+
+    def store_git_history(self, analysis_id: str, repo_path: str) -> None:
+        """
+        Extract commits, developers, changed files, and link them inside Neo4j.
+        """
+        from app.services.git_history_service import is_git_repository, extract_git_history
+        if not is_git_repository(repo_path):
+            return
+
+        commits = extract_git_history(repo_path, max_commits=100)
+        if not commits:
+            return
+
+        # 1. Merge Developers
+        devs_batch = []
+        seen_emails = set()
+        for c in commits:
+            email = c["author_email"]
+            if email and email not in seen_emails:
+                seen_emails.add(email)
+                devs_batch.append({
+                    "name": c["author_name"],
+                    "email": email
+                })
+        if devs_batch:
+            query = """
+            UNWIND $batch AS dev
+            MERGE (d:Developer {email: dev.email})
+            ON CREATE SET d.name = dev.name
+            """
+            self._client.run_write_query(query, {"batch": devs_batch})
+
+        # 2. Merge Commits
+        commits_batch = []
+        for c in commits:
+            commits_batch.append({
+                "hash": c["hash"],
+                "short_hash": c["short_hash"],
+                "message": c["message"],
+                "author_name": c["author_name"],
+                "author_email": c["author_email"],
+                "committer_name": c["committer_name"],
+                "timestamp": c["timestamp"],
+                "insertions": c["insertions"],
+                "deletions": c["deletions"],
+                "analysis_id": analysis_id
+            })
+        if commits_batch:
+            query = """
+            UNWIND $batch AS c
+            MERGE (co:Commit {hash: c.hash})
+            ON CREATE SET co.short_hash = c.short_hash,
+                          co.message = c.message,
+                          co.author_name = c.author_name,
+                          co.author_email = c.author_email,
+                          co.committer_name = c.committer_name,
+                          co.timestamp = c.timestamp,
+                          co.insertions = c.insertions,
+                          co.deletions = c.deletions,
+                          co.analysis_id = c.analysis_id
+            """
+            self._client.run_write_query(query, {"batch": commits_batch})
+
+        # 3. Link Commit -> Developer AUTHORED_BY
+        auth_batch = []
+        for c in commits:
+            auth_batch.append({
+                "commit_hash": c["hash"],
+                "email": c["author_email"]
+            })
+        if auth_batch:
+            query = """
+            UNWIND $batch AS item
+            MATCH (co:Commit {hash: item.commit_hash})
+            MATCH (d:Developer {email: item.email})
+            MERGE (co)-[:AUTHORED_BY]->(d)
+            """
+            self._client.run_write_query(query, {"batch": auth_batch})
+
+        # 4. Link Repository -> Commit HAS_COMMIT
+        repo_commit_batch = [{"repo_id": f"repo:{analysis_id}", "commit_hash": c["hash"]} for c in commits]
+        if repo_commit_batch:
+            query = """
+            UNWIND $batch AS item
+            MERGE (repo:Repository {id: item.repo_id})
+            WITH item, repo
+            MATCH (co:Commit {hash: item.commit_hash})
+            MERGE (repo)-[:HAS_COMMIT]->(co)
+            """
+            self._client.run_write_query(query, {"batch": repo_commit_batch})
+
+        # 5. Link Commit -> File CHANGED
+        changed_batch = []
+        for c in commits:
+            for f in c["changed_files"]:
+                rel_path = f["path"]
+                historical_path = os.path.join(repo_path, rel_path)
+                file_id = f"file:{analysis_id}:{historical_path}"
+                changed_batch.append({
+                    "commit_hash": c["hash"],
+                    "file_id": file_id,
+                    "rel_path": rel_path,
+                    "historical_path": historical_path,
+                    "change_type": f["change_type"],
+                    "insertions": f["insertions"],
+                    "deletions": f["deletions"],
+                    "analysis_id": analysis_id
+                })
+        if changed_batch:
+            query = """
+            UNWIND $batch AS item
+            MERGE (f:File {id: item.file_id})
+            ON CREATE SET f.analysis_id = item.analysis_id,
+                          f.rel_path = item.rel_path,
+                          f.path = item.historical_path,
+                          f.exists_in_current_snapshot = false
+            
+            WITH item, f
+            MATCH (co:Commit {hash: item.commit_hash})
+            MERGE (co)-[r:CHANGED]->(f)
+            SET r.change_type = item.change_type,
+                r.insertions = item.insertions,
+                r.deletions = item.deletions
+            """
+            self._client.run_write_query(query, {"batch": changed_batch})
+
+        # 6. Link Commits to their parents: Commit -> Commit PARENT_OF
+        parent_batch = []
+        for c in commits:
+            for parent_hash in c["parent_hashes"]:
+                parent_batch.append({
+                    "parent_hash": parent_hash,
+                    "child_hash": c["hash"]
+                })
+        if parent_batch:
+            query = """
+            UNWIND $batch AS item
+            MATCH (parent:Commit {hash: item.parent_hash})
+            MATCH (child:Commit {hash: item.child_hash})
+            MERGE (parent)-[:PARENT_OF]->(child)
+            """
+            self._client.run_write_query(query, {"batch": parent_batch})
+
+    def get_commits_for_analysis(
+        self,
+        analysis_id: str,
+        q: Optional[str] = None,
+        author: Optional[str] = None,
+        commit_hash: Optional[str] = None,
+        limit: int = 50,
+        offset: int = 0
+    ) -> Dict[str, Any]:
+        """
+        Retrieve commits and changed files for a repository analysis under Neo4j,
+        supporting pagination and search filters (message, author, hash).
+        """
+        repo_id = f"repo:{analysis_id}"
+        
+        # 1. Get total count of matching commits
+        count_query = """
+        MATCH (repo:Repository {id: $repo_id})-[:HAS_COMMIT]->(c:Commit)
+        WHERE ($q IS NULL OR toLower(c.message) CONTAINS toLower($q))
+          AND ($author IS NULL OR toLower(c.author_name) CONTAINS toLower($author) OR toLower(c.author_email) CONTAINS toLower($author))
+          AND ($hash IS NULL OR c.hash STARTS WITH $hash)
+        RETURN count(c) as total
+        """
+        count_res = self._client.run_query(count_query, {
+            "repo_id": repo_id,
+            "q": q or None,
+            "author": author or None,
+            "hash": commit_hash or None
+        })
+        total = count_res[0]["total"] if count_res else 0
+
+        if total == 0:
+            return {"commits": [], "total": 0}
+
+        # 2. Retrieve page of commits
+        query = """
+        MATCH (repo:Repository {id: $repo_id})-[:HAS_COMMIT]->(c:Commit)
+        WHERE ($q IS NULL OR toLower(c.message) CONTAINS toLower($q))
+          AND ($author IS NULL OR toLower(c.author_name) CONTAINS toLower($author) OR toLower(c.author_email) CONTAINS toLower($author))
+          AND ($hash IS NULL OR c.hash STARTS WITH $hash)
+        
+        WITH c
+        ORDER BY c.timestamp DESC
+        SKIP $offset LIMIT $limit
+        
+        OPTIONAL MATCH (c)-[r:CHANGED]->(f:File)
+        WITH c, collect({
+            path: f.rel_path,
+            change_type: r.change_type,
+            insertions: r.insertions,
+            deletions: r.deletions
+        }) AS changed_files
+        
+        RETURN {
+            hash: c.hash,
+            short_hash: c.short_hash,
+            message: c.message,
+            author_name: c.author_name,
+            author_email: c.author_email,
+            timestamp: c.timestamp,
+            insertions: c.insertions,
+            deletions: c.deletions,
+            changed_files: [f IN changed_files WHERE f.path IS NOT NULL]
+        } AS commit_data
+        """
+        commits_res = self._client.run_query(query, {
+            "repo_id": repo_id,
+            "q": q or None,
+            "author": author or None,
+            "hash": commit_hash or None,
+            "limit": limit,
+            "offset": offset
+        })
+        
+        commits = [item["commit_data"] for item in commits_res]
+        return {"commits": commits, "total": total}
 
     # ------------------------------------------------------------------
     # Public read API

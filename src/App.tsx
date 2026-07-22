@@ -2,6 +2,7 @@ import React, { Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import Layout from './components/Layout';
+import { FeatureGate } from './components/FeatureGate';
 
 // Lazy load pages for performance
 const LandingPage   = lazy(() => import('./pages/LandingPage'));
@@ -10,6 +11,7 @@ const GraphExplorer = lazy(() => import('./pages/GraphExplorer'));
 const SemanticSearch= lazy(() => import('./pages/SemanticSearch'));
 const ImpactAnalysis= lazy(() => import('./pages/ImpactAnalysis'));
 const AIOnboarding  = lazy(() => import('./pages/AIOnboarding'));
+const CommitHistory = lazy(() => import('./pages/CommitHistory'));
 
 // ── Page Loading Fallback ─────────────────────────────────────────────────
 const PageLoader: React.FC = () => (
@@ -69,7 +71,9 @@ const AnimatedRoutes: React.FC = () => {
           <Layout>
             <Suspense fallback={<PageLoader />}>
               <PageTransition>
-                <SemanticSearch />
+                <FeatureGate featureKey="semanticSearch" featureName="Semantic Search">
+                  <SemanticSearch />
+                </FeatureGate>
               </PageTransition>
             </Suspense>
           </Layout>
@@ -78,7 +82,9 @@ const AnimatedRoutes: React.FC = () => {
           <Layout>
             <Suspense fallback={<PageLoader />}>
               <PageTransition>
-                <ImpactAnalysis />
+                <FeatureGate featureKey="impactAnalysis" featureName="Impact Analysis">
+                  <ImpactAnalysis />
+                </FeatureGate>
               </PageTransition>
             </Suspense>
           </Layout>
@@ -87,7 +93,20 @@ const AnimatedRoutes: React.FC = () => {
           <Layout>
             <Suspense fallback={<PageLoader />}>
               <PageTransition>
-                <AIOnboarding />
+                <FeatureGate featureKey="aiOnboarding" featureName="AI Onboarding">
+                  <AIOnboarding />
+                </FeatureGate>
+              </PageTransition>
+            </Suspense>
+          </Layout>
+        } />
+        <Route path="/commits" element={
+          <Layout>
+            <Suspense fallback={<PageLoader />}>
+              <PageTransition>
+                <FeatureGate featureKey="commitHistory" featureName="Commit History">
+                  <CommitHistory />
+                </FeatureGate>
               </PageTransition>
             </Suspense>
           </Layout>

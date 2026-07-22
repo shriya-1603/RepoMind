@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import JSONResponse
-from typing import Any
+from typing import Any, Optional
 from app.models.schemas import (
     AnalyzeRepoRequest,
     AnalyzeRepoResponse,
@@ -132,7 +132,7 @@ def analyze_repo(request: AnalyzeRepoRequest) -> Any:
             start_clone = time.time()
             try:
                 clone_result = subprocess.run(
-                    ["git", "clone", "--depth", "1", "--single-branch", repo_url_str, repo_path],
+                    ["git", "clone", "--depth", "100", "--single-branch", repo_url_str, repo_path],
                     check=False,
                     capture_output=True,
                     text=True,
@@ -627,6 +627,40 @@ def change_simulation_real(analysis_id: str, payload: ChangeSimulationRequest) -
             f'{", ".join((direct_deps + transitive_deps)[:5])}'
         ),
     )
+
+
+@router.get('/repositories/{analysis_id}/commits')
+def get_repository_commits(
+    analysis_id: str,
+    q: Optional[str] = None,
+    author: Optional[str] = None,
+    commit_hash: Optional[str] = Query(None, alias="hash"),
+    limit: int = 50,
+    offset: int = 0
+):
+    from fastapi.params import Query as QueryParam
+    if isinstance(commit_hash, QueryParam):
+        commit_hash = None
+
+    try:
+        client = Neo4jClient()
+        if not client.test_connection():
+            raise HTTPException(status_code=503, detail="Neo4j connection unavailable")
+        
+        graph_svc = GraphService(client=client)
+        commits_data = graph_svc.get_commits_for_analysis(
+            analysis_id=analysis_id,
+            q=q,
+            author=author,
+            commit_hash=commit_hash,
+            limit=limit,
+            offset=offset
+        )
+        client.close()
+        return commits_data
+    except Exception as e:
+        logger.error(f"Error fetching commits for analysis {analysis_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get('/repository-activity/{analysis_id}', response_model=RepositoryActivityResponse)

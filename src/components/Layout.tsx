@@ -3,7 +3,7 @@ import { NavLink, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard, GitBranch, Search, Zap, Bot,
-  ChevronLeft, ChevronRight, Settings, Code2, Menu,
+  ChevronLeft, ChevronRight, Settings, Code2, Menu, GitCommit
 } from 'lucide-react';
 import CommandPalette from './CommandPalette';
 import AmbientBackground from './AmbientBackground';
@@ -18,9 +18,10 @@ interface LayoutProps {
 const navItems = [
   { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard',       shortcut: '1' },
   { path: '/graph',     icon: GitBranch,        label: 'System Explorer',  shortcut: '2' },
-  { path: '/search',   icon: Search,            label: 'Semantic Search', shortcut: '3' },
-  { path: '/impact',   icon: Zap,               label: 'Impact Analysis', shortcut: '4' },
-  { path: '/onboard',  icon: Bot,               label: 'AI Onboarding',   shortcut: '5' },
+  { path: '/commits',   icon: GitCommit,        label: 'Commit History',  shortcut: '3' },
+  { path: '/search',   icon: Search,            label: 'Semantic Search', shortcut: '4' },
+  { path: '/impact',   icon: Zap,               label: 'Impact Analysis', shortcut: '5' },
+  { path: '/onboard',  icon: Bot,               label: 'AI Onboarding',   shortcut: '6' },
 ];
 
 // ── Presence Data Hook ──────────────────────────────────────────────────

@@ -508,3 +508,49 @@ export interface RepositoryActivityData {
 export const getRepositoryActivity = async (analysisId: string) => {
   return apiFetch<RepositoryActivityData>(`/repository-activity/${analysisId}`);
 };
+
+export interface ChangedFileInfo {
+  path: string;
+  change_type: 'added' | 'modified' | 'deleted' | 'renamed';
+  insertions: number;
+  deletions: number;
+}
+
+export interface CommitHistoryItem {
+  hash: string;
+  short_hash: string;
+  message: string;
+  author_name: string;
+  author_email: string;
+  timestamp: string;
+  insertions: number;
+  deletions: number;
+  changed_files: ChangedFileInfo[];
+}
+
+export interface CommitHistoryResponse {
+  commits: CommitHistoryItem[];
+  total: number;
+}
+
+export const getCommitHistory = async (
+  analysisId: string,
+  params: {
+    q?: string;
+    author?: string;
+    hash?: string;
+    limit?: number;
+    offset?: number;
+  }
+) => {
+  const queryParts = [];
+  if (params.q) queryParts.push(`q=${encodeURIComponent(params.q)}`);
+  if (params.author) queryParts.push(`author=${encodeURIComponent(params.author)}`);
+  if (params.hash) queryParts.push(`hash=${encodeURIComponent(params.hash)}`);
+  if (params.limit !== undefined) queryParts.push(`limit=${params.limit}`);
+  if (params.offset !== undefined) queryParts.push(`offset=${params.offset}`);
+  
+  const queryStr = queryParts.length > 0 ? `?${queryParts.join('&')}` : '';
+  return apiFetch<CommitHistoryResponse>(`/repositories/${analysisId}/commits${queryStr}`);
+};
+
