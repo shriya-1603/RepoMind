@@ -13,15 +13,23 @@
 
 https://github.com/user-attachments/assets/e8390b1e-6338-4e23-bb3d-c1a297c6b3d9
 
-    </td>
-    <td width="50%" align="center">
+
+      
+
+
+
+
+   
+  </tr>
+  <tr>
+    <td width="100%" align="center" colspan="2">
       <b>Interactive System Dashboard</b><br/>
       
 
 https://github.com/user-attachments/assets/4f2319d8-9fe0-4ed8-8418-d59a2cef428b
 
 
-    </td>
+    
   </tr>
   <tr>
     <td width="100%" align="center" colspan="2">
@@ -31,7 +39,7 @@ https://github.com/user-attachments/assets/4f2319d8-9fe0-4ed8-8418-d59a2cef428b
 https://github.com/user-attachments/assets/87228dd3-faae-4149-8b3d-fd5d9740cc14
 
 
-    </td>
+    
   </tr>
 </table>
 
