@@ -19,3 +19,26 @@ app.include_router(router)
 @app.get('/')
 def root() -> dict[str, str]:
     return {'message': 'RepoMind backend is running.'}
+
+
+@app.get('/health')
+def health() -> dict[str, str]:
+    import redis
+    from app.graph.neo4j_client import Neo4jClient
+    
+    # Check Neo4j
+    try:
+        client = Neo4jClient()
+        if not client.test_connection():
+            return {'status': 'unhealthy', 'reason': 'Neo4j connection failed'}
+    except Exception as e:
+        return {'status': 'unhealthy', 'reason': f'Neo4j error: {e}'}
+        
+    # Check Redis
+    try:
+        r = redis.from_url(settings.redis_url)
+        r.ping()
+    except Exception as e:
+        return {'status': 'unhealthy', 'reason': f'Redis error: {e}'}
+
+    return {'status': 'healthy'}
