@@ -9,17 +9,28 @@
   <tr>
     <td width="50%" align="center">
       <b>Landing Page</b><br/>
-      <img src="docs/screenshots/landing.png" alt="Landing Page Preview" width="100%"/>
+      
+
+https://github.com/user-attachments/assets/e8390b1e-6338-4e23-bb3d-c1a297c6b3d9
+
     </td>
     <td width="50%" align="center">
       <b>Interactive System Dashboard</b><br/>
-      <img src="docs/screenshots/dashboard.png" alt="Dashboard Preview" width="100%"/>
+      
+
+https://github.com/user-attachments/assets/4f2319d8-9fe0-4ed8-8418-d59a2cef428b
+
+
     </td>
   </tr>
   <tr>
     <td width="100%" align="center" colspan="2">
       <b>System Explorer (Interactive Code Graph & Call Graph)</b><br/>
-      <img src="docs/screenshots/system_explorer.png" alt="System Explorer Preview" width="100%"/>
+      
+
+https://github.com/user-attachments/assets/87228dd3-faae-4149-8b3d-fd5d9740cc14
+
+
     </td>
   </tr>
 </table>
