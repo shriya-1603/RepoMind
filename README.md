@@ -5,42 +5,34 @@
 ---
 
 ## 🖥️ Screen Previews
-<table width="100%">
-  <tr>
-    <td width="50%" align="center">
-      <b>Landing Page</b><br/>
-      
 
-https://github.com/user-attachments/assets/e8390b1e-6338-4e23-bb3d-c1a297c6b3d9
+<table>
+<tr>
+<td align="center">
+<b>🚀 Landing Page</b><br><br>
 
+<video src="https://github.com/user-attachments/assets/e8390b1e-6338-4e23-bb3d-c1a297c6b3d9" controls width="100%"></video>
 
-      
+</td>
+</tr>
 
+<tr>
+<td align="center">
+<b>📊 Interactive System Dashboard</b><br><br>
 
+<video src="https://github.com/user-attachments/assets/4f2319d8-9fe0-4ed8-8418-d59a2cef428b" controls width="100%"></video>
 
+</td>
+</tr>
 
-   
-  </tr>
-  <tr>
-    <td width="100%" align="center" colspan="2">
-      <b>Interactive System Dashboard</b><br/>
-      
+<tr>
+<td align="center">
+<b>🕸️ System Explorer (Interactive Code Graph & Call Graph)</b><br><br>
 
-https://github.com/user-attachments/assets/4f2319d8-9fe0-4ed8-8418-d59a2cef428b
+<video src="https://github.com/user-attachments/assets/87228dd3-faae-4149-8b3d-fd5d9740cc14" controls width="100%"></video>
 
-
-    
-  </tr>
-  <tr>
-    <td width="100%" align="center" colspan="2">
-      <b>System Explorer (Interactive Code Graph & Call Graph)</b><br/>
-      
-
-https://github.com/user-attachments/assets/87228dd3-faae-4149-8b3d-fd5d9740cc14
-
-
-    
-  </tr>
+</td>
+</tr>
 </table>
 
 ---
