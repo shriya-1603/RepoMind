@@ -12,17 +12,20 @@ Unlike standard static analysis tools or simple LLM wrappers, RepoMind parses ab
   <tr>
     <td width="50%" align="center">
       <b>Landing Page</b><br/>
-      <img src="docs/screenshots/landing.png" alt="Landing Page Preview" width="100%"/>
+      <video src=https://github.com/user-attachments/assets/fac2ff5e-d077-49ae-9ff2-220ebb1b3390
+alt="Landing Page Preview" width="100%"/>
     </td>
     <td width="50%" align="center">
       <b>Interactive Dashboard</b><br/>
-      <img src="docs/screenshots/dashboard.png" alt="Dashboard Preview" width="100%"/>
+      <video src=https://github.com/user-attachments/assets/e729f92d-aada-4642-96fe-57882dc1f32f
+ alt="Dashboard Preview" width="100%"/>
     </td>
   </tr>
   <tr>
     <td width="100%" align="center" colspan="2">
       <b>System Explorer (Interactive Code Call & Import Graph)</b><br/>
-      <img src="docs/screenshots/system_explorer.png" alt="System Explorer Preview" width="100%"/>
+      <video src=https://github.com/user-attachments/assets/b5d1fdfd-9f36-4fbc-9427-d435b313a327
+ alt="System Explorer Preview" width="100%"/>
     </td>
   </tr>
 </table>
