@@ -1,82 +1,65 @@
 # RepoMind — Repository Intelligence Platform
 
-> **Understanding a large, unfamiliar codebase is one of the most significant bottlenecks for software engineering teams. RepoMind automatically transforms any codebase into an interactive knowledge graph, architectural outline, and AI-powered repository intelligence system.**
+**Understanding a large, unfamiliar codebase is one of the biggest challenges for software engineers. RepoMind automatically transforms any repository into an interactive knowledge graph, architectural overview, and AI-powered codebase intelligence system.**
+
+Unlike standard static analysis tools or simple LLM wrappers, RepoMind parses abstract syntax trees (ASTs), constructs deterministic code relationship networks in a graph database, and runs a decoupled, dependency-sorted scheduling engine to generate deep codebase insights, guides, and health diagnostics.
 
 ---
 
 ## 🖥️ Screen Previews
 
-<table>
-<tr>
-<td align="center">
-<b>🚀 Landing Page</b><br><br>
-
-<video src="https://github.com/user-attachments/assets/e8390b1e-6338-4e23-bb3d-c1a297c6b3d9" controls width="100%"></video>
-
-</td>
-</tr>
-
-<tr>
-<td align="center">
-<b>📊 Interactive System Dashboard</b><br><br>
-
-<video src="https://github.com/user-attachments/assets/4f2319d8-9fe0-4ed8-8418-d59a2cef428b" controls width="100%"></video>
-
-</td>
-</tr>
-
-<tr>
-<td align="center">
-<b>🕸️ System Explorer (Interactive Code Graph & Call Graph)</b><br><br>
-
-<video src="https://github.com/user-attachments/assets/87228dd3-faae-4149-8b3d-fd5d9740cc14" controls width="100%"></video>
-
-</td>
-</tr>
+<table width="100%">
+  <tr>
+    <td width="50%" align="center">
+      <b>Landing Page</b><br/>
+      <img src="docs/screenshots/landing.png" alt="Landing Page Preview" width="100%"/>
+    </td>
+    <td width="50%" align="center">
+      <b>Interactive Dashboard</b><br/>
+      <img src="docs/screenshots/dashboard.png" alt="Dashboard Preview" width="100%"/>
+    </td>
+  </tr>
+  <tr>
+    <td width="100%" align="center" colspan="2">
+      <b>System Explorer (Interactive Code Call & Import Graph)</b><br/>
+      <img src="docs/screenshots/system_explorer.png" alt="System Explorer Preview" width="100%"/>
+    </td>
+  </tr>
 </table>
 
 ---
 
-## 💡 The Problem & The Solution
+## ✨ Features
 
-### The Problem
-When joining a new team or auditing an existing system, engineers spend days manually tracing imports, drawing call graphs on whiteboards, and reading stale documentation just to answer simple questions:
-* *“If I modify this class, what modules will break?”*
-* *“Who is the primary author of this subsystem, and where is the execution entry point?”*
-* *“Are we bypassing our architectural layers with circular dependencies?”*
-
-### The Solution
-RepoMind solves this by combining **static analysis (AST parsing)**, **graph database modeling (Neo4j)**, and **AI intelligence generators** into a single pipeline. It extracts code syntax nodes and call hierarchies, imports them into a semantic graph, runs topological sorting to resolve data dependencies, and serves interactive maps alongside AI onboarding summaries.
-
----
-
-## 📊 Concrete Analysis Example (RepoMind Workspace)
-Below are the actual ingestion and execution metrics computed for the **RepoMind** codebase itself:
-
-| Metric | Measured Count / Value |
-|---|---|
-| **Graph Nodes** | 1,616 semantic entities (Files, Classes, Functions, Authors) |
-| **Graph Edges** | 10,694 relationships (`CALLS`, `IMPORTS`, `DEFINES`, `CHANGED`) |
-| **Analyzed Functions** | 314 functions |
-| **Analyzed Classes** | 67 classes |
-| **Parsed Imports** | 128 import paths |
-| **Generated Reports** | 11 specialized architectural insights |
-| **Total Ingestion Time** | 5.2 seconds |
+* **Multi-Language AST Parsing**: Parses code structures (files, classes, functions, imports, calls) deterministically to establish ground-truth relationships.
+* **Deterministic Code Graph**: Maps dependencies, inheritance structures, and function calls in a Neo4j graph database.
+* **AI-Generated Architecture Summaries**: Generates high-level purpose overviews and reading guides to onboard developers in seconds.
+* **Critical Path & Centrality Detection**: Ranks files by dependency importance, identifying hot-spots and single-points-of-failure.
+* **Semantic Code Search**: Finds relevant components using natural language semantic embeddings, connected to the code graph.
+* **Dynamic Codebase Health Diagnostics**: Scores repositories based on cohesion, complexity, coupling, and circular dependencies.
+* **Local Git History Explorer**: Indexes commit history, contributors, and file touch frequencies to trace historical ownership.
 
 ---
 
-## 🧠 AI-Powered Capabilities & Feature Set
+## 📊 Concrete Example Analysis
 
-* **Interactive Code Graph**: Visually explore subsystems, classes, and function call hierarchies.
-* **AI-Generated Architecture Summaries**: Get high-level domain overviews explaining *why* the codebase is structured the way it is.
-* **Onboarding & Reading Guides**: AI-compiled walkthroughs suggesting exactly which files to read first, second, and third.
-* **Critical File Detection**: Graph centrality calculations (PageRank) automatically bubble up high-impact bottlenecks.
-* **Semantic Search**: Natural language codebase query interface mapping developer questions directly to code coordinates.
-* **Commit History & Git Intelligence**: Explore commit graphs mapped directly to altered file nodes and author developers.
+Here are the real-world metrics generated when scanning a standard Python microservices codebase:
+
+| Metric | Measured Value |
+| :--- | :--- |
+| **Analyzed Directory** | `python/flask-microservice` |
+| **Total Stored Nodes** | **884** (Files, Classes, Functions, Imports) |
+| **Total Stored Edges** | **2,054** (Calls, Inherits, Imports, Contains) |
+| **Parsed Functions** | **314** |
+| **Parsed Classes** | **67** |
+| **Total Execution Time** | **5.2 seconds** |
+| **Generated Intelligence Reports** | **11** (Domain, Health, Onboarding Guide, etc.) |
 
 ---
 
-## 🏗 System Architecture Flowchart
+## 🏗️ System Architecture Flowchart
+
+The following diagram illustrates the complete runtime request-response lifecycle. It details how the frontend React client communicates with the FastAPI routes, how the service layer resolves facts caching, and how the pipeline engine uses topological sorting to execute single-purpose reasoning generators.
 
 ```mermaid
 flowchart TD
@@ -142,20 +125,49 @@ flowchart TD
 
 ---
 
-## 🛠 Challenges & Engineering Decisions
+## ⚙️ Topological Sort & Cycle Detection Flowchart
 
-### 1. Decoupled Pipeline Architecture (Topological Sorting)
-* **Challenge**: The intelligence generators (Domain analyzer, Technology classifier, Reading Guide builder) need to consume each other's outputs. Hardcoding execution sequence orders leads to spaghetti orchestration code and fragile coupling.
-* **Decision**: Designed a **Dependency-Driven Pipeline Engine**. Each step declares prerequisite inputs via `requires: List[str]` (e.g., `requires = ["tech_stack", "domain_model"]`). The engine builds a dependency DAG at runtime and resolves execution sequence using a **three-state DFS Topological Sort** (`0 = unvisited`, `1 = visiting`, `2 = visited`), detecting and rejecting circular dependencies with `PipelineDependencyError`.
+The following flowchart outlines the recursive DFS three-state (`0 = unvisited`, `1 = visiting`, `2 = visited`) topological sort algorithm used by the pipeline engine to dynamically resolve execution orders and prevent circular dependencies:
 
-### 2. Isolated Facts Abstraction Layer (Graph Repository Pattern)
-* **Challenge**: Directly coupling intelligence generators to Cypher queries makes database schemas hard to change, makes unit testing slow, and saturates Neo4j connection pools.
-* **Decision**: Implemented the **Repository Pattern** (`GraphRepositoryProtocol`). This translates complex Cypher graph queries into clean Python dictionary schemas. The `FactsBuilder` consumes this interface, compiling all graph facts (files, imports, call edges) into a canonical JSON model.
-* **Result**: Caching is proxy-handled by `CachedFactsProvider` on disk, allowing subsequent pipelines to run instantly and completely database-free.
+```mermaid
+flowchart TD
+    %% Styling Classes
+    classDef startEnd fill:#d4edda,stroke:#28a745,stroke-width:2px,color:#155724;
+    classDef decision fill:#fff3cd,stroke:#ffc107,stroke-width:2px,color:#856404;
+    classDef step fill:#e8f4fd,stroke:#2b8a3e,stroke-width:1px,color:#0b7285;
+    classDef error fill:#f8d7da,stroke:#dc3545,stroke-width:2px,color:#721c24;
+
+    Start([1. Begin resolve_order]):::startEnd --> InitStates[Set all generator states to 0 / unvisited]:::step
+    InitStates --> CheckLoop{More generators in registry?}:::decision
+    
+    CheckLoop -->|Yes| SelectGen[Select next generator class]:::step
+    SelectGen --> CallVisit[Call visit generator]:::step
+    CheckLoop -->|No| End([Return resolved order list]):::startEnd
+    
+    CallVisit --> GetState{Check state of current generator}:::decision
+    GetState -->|State = 2 / visited| ReturnVisit[Return to caller]:::step
+    GetState -->|State = 1 / visiting| RaiseCycle[Raise PipelineDependencyError Circular Loop!]:::error
+    GetState -->|State = 0 / unvisited| TransitionVisiting[Set state to 1 / visiting]:::step
+    
+    TransitionVisiting --> PushStack[Push key to path stack]:::step
+    PushStack --> CheckDeps{Has required dependencies?}:::decision
+    
+    CheckDeps -->|Yes| LoopDeps[For each required key in requires list]:::step
+    LoopDeps --> FindDepCls[Look up dependency generator class]:::step
+    FindDepCls --> CallVisitRecurse[Recursively call visit]:::step
+    CallVisitRecurse --> LoopDeps
+    
+    CheckDeps -->|No| PopStack[Pop key from path stack]:::step
+    LoopDeps -->|Finished all deps| PopStack
+    
+    PopStack --> TransitionVisited[Set state to 2 / visited]:::step
+    TransitionVisited --> AppendOrder[Append generator to order list]:::step
+    AppendOrder --> ReturnVisit
+```
 
 ---
 
-## 🏗 Directory Structure
+## 🛠 Directory Structure
 
 ```text
 backend/
@@ -169,7 +181,7 @@ backend/
 │   │   └── repository_intelligence/  # Decoupled intelligence pipeline folder
 │   │       ├── engine/
 │   │       │   ├── pipeline.py       # Dependency resolution, sorting, and cycle checks
-│   │       │   ├── context.py        # execution state maps
+│   │       │   ├── context.py        # Execution state maps
 │   │       │   └── models.py         # Response schemas
 │   │       ├── facts/
 │   │       │   ├── facts_builder.py  # Compiles all AST and graph parameters into facts dict
@@ -191,8 +203,26 @@ backend/
 │   │           ├── health_generator.py
 │   │           └── observations_generator.py
 │   └── main.py                       # FastAPI application entry point
+│   └── graph/
+│       └── neo4j_client.py           # Database connection and Cypher transactions
 └── requirements.txt
 ```
+
+---
+
+## 🧠 Challenges & Engineering Decisions
+
+### 1. Dynamic Prerequisite Scheduling & Cycle Prevention
+**The Challenge:** Different codebase analysis tasks (e.g. assessing cohesion, identifying tech stack, building a reading guide) require different subsets of data. Forcing a linear sequence wastes processing time and fails if steps are reordered.
+**The Solution:** Implemented a Directed Acyclic Graph (DAG) scheduling engine. Each generator declares its prerequisites via `requires: List[str]`. The execution engine resolves these dependencies at runtime using a recursive Depth-First Search (DFS) topological sort. To guarantee system stability, the scheduler implements a three-state cycle detection algorithm, raising a `PipelineDependencyError` before execution if a circular dependency is detected.
+
+### 2. Database Decoupling & Caching Proxy
+**The Challenge:** Connecting directly to Neo4j during every stage of the intelligence pipeline introduces massive database transaction overhead and makes unit testing generators difficult.
+**The Solution:** Built a clean facts compiler abstraction (`FactsBuilder`) which translates Neo4j graph schemas into a single, canonical JSON facts dictionary. Caching is handled at the proxy layer (`CachedFactsProvider`). If a repository has been scanned, the pipeline executes completely database-free directly off local files, speeding up execution from seconds to milliseconds.
+
+### 3. Protocol-Based Interface Segregation
+**The Challenge:** Hardcoding database query clients directly into business services violates the Dependency Inversion Principle (DIP), locking the platform into a single database technology.
+**The Solution:** Abstracted all Neo4j query operations into the `GraphRepositoryProtocol` interface. The service layer interacts only with this abstract interface, making it possible to drop in an in-memory graph repository or an alternative document store without rewriting a single line of the main analysis logic.
 
 ---
 
@@ -226,4 +256,4 @@ backend/
    ```bash
    npm run dev
    ```
-   Open [http://localhost:5173](http://localhost:5173) in your browser to access the dashboard.
+   Open [http://localhost:5174](http://localhost:5174) in your browser to access the dashboard.
